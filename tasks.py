@@ -29,3 +29,13 @@ def deploy(ctx):
     # Send to aws
     run(f'aws lambda update-function-code --function-name {function_arn} --zip-file fileb://html2pdf.zip')
     run(f'aws s3 cp html2pdf.zip s3://{bucket_name}/html2pdf.zip')
+
+
+@task
+def invoke(ctx):
+    function_arn = os.getenv('FUNCTION_ARN')
+    print('request status:')
+    run(f'aws lambda invoke --function-name {function_arn} --invocation-type RequestResponse test.json')
+    print('response:')
+    run(f'cat test.json && rm test.json')
+    print()
