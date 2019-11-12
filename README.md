@@ -7,3 +7,5 @@
 6. Generate your secret file with `inv setup` - enter the details it asks you (currently just the ARN of the function)
 7. Deploy the code to your new function with `inv deploy`. It'll download prince and send it all up to your lambda.
 8. Done. Invoke your lambda with all the HTML/CSS you want. It'll save the resulting PDF to s3 and return a link to it.
+
+If you have an existing lambda, simply run `inv setup` and give it the function ARN. Then `inv deploy` to update it with splat code.
