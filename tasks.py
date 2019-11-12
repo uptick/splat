@@ -16,6 +16,8 @@ def create_zip():
     if not os.path.exists(f'{PRINCE_FILENAME}.tar.gz'):
         print('Downloading princeXML...')
         run(f'curl -O -J https://www.princexml.com/download/{PRINCE_FILENAME}.tar.gz')
+    else:
+        print('Using existing princeXML download')
     print('Extracting...')
     run(f'tar -xf {PRINCE_FILENAME}.tar.gz')
     print('Copying...')
