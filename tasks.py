@@ -32,11 +32,9 @@ def create_zip():
 @task
 def setup(ctx):
     function_arn = prompt('FUNCTION_ARN')
-    bucket_name = prompt('BUCKET_NAME')
     with open('.envrc', 'w') as f:
         f.write(
             f'export FUNCTION_ARN={function_arn}\n'
-            f'export BUCKET_NAME={bucket_name}\n'
             )
     print('done - please source .envrc with ". .envrc"')
 
@@ -44,13 +42,10 @@ def setup(ctx):
 @task
 def deploy(ctx):
     function_arn = os.getenv('FUNCTION_ARN')
-    bucket_name = os.getenv('BUCKET_NAME')
     create_zip()
     # Send to aws
     print('Updating lambda...')
     run(f'aws lambda update-function-code --function-name {function_arn} --zip-file fileb://{ZIP_FILENAME}')
-    print('Uploading to s3...')
-    run(f'aws s3 cp {ZIP_FILENAME} s3://{bucket_name}/{ZIP_FILENAME}')
     print('Done!')
 
 
