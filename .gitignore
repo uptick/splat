@@ -1,3 +1,5 @@
 .envrc
 test.json
 html2pdf/prince
+prince*.tar.gz
+html2pdf.zip
