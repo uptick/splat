@@ -7,6 +7,7 @@ verify_ssl = true
 invoke = "*"
 flake8 = "*"
 ipdb = "*"
+requests = "*"
 
 [packages]
 

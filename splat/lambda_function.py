@@ -9,5 +9,5 @@ def lambda_handler(event, context):
     output = popen.stdout.read().decode()
     return {
         'statusCode': 200,
-        'body': json.dumps(output)
+        'body': json.dumps(output),
     }
