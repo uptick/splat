@@ -3,7 +3,7 @@ import os
 from invoke import run, task
 
 PRINCE_FILENAME = 'prince-12.5-linux-generic-x86_64'
-ZIP_FILENAME = 'html2pdf.zip'
+ZIP_FILENAME = 'splat.zip'
 
 
 def prompt(message):
@@ -19,12 +19,12 @@ def create_zip():
     print('Extracting...')
     run(f'tar -xf {PRINCE_FILENAME}.tar.gz')
     print('Copying...')
-    run(f'cp -r {PRINCE_FILENAME}/lib/prince/ html2pdf/')
+    run(f'cp -r {PRINCE_FILENAME}/lib/prince/ splat/')
     print('Cleaning up...')
     run(f'rm -r {PRINCE_FILENAME}')
     # Zip up project contents
     print('Compressing project...')
-    run(f'cd html2pdf && zip -FSrq ../{ZIP_FILENAME} *')
+    run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
 
 
 @task
@@ -53,16 +53,6 @@ def deploy(ctx):
 
 
 @task
-def invoke(ctx):
-    function_arn = os.getenv('FUNCTION_ARN')
-    print('request status:')
-    run(f'aws lambda invoke --function-name {function_arn} --invocation-type RequestResponse test.json')
-    print('response:')
-    run(f'cat test.json && rm test.json')
-    print()
-
-
-@task
 def create(ctx):
     runtime = 'python3.7'
     handler = 'lambda_function.lambda_handler'
@@ -80,3 +70,13 @@ def create(ctx):
     print(command)
     # TODO: Print command and ask user to confirm
     run(command)
+
+
+@task
+def invoke(ctx):
+    function_arn = os.getenv('FUNCTION_ARN')
+    print('request status:')
+    run(f'aws lambda invoke --function-name {function_arn} --invocation-type RequestResponse test.json')
+    print('response:')
+    run(f'cat test.json && rm test.json')
+    print()

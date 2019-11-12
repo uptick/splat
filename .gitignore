@@ -1,5 +1,5 @@
 .envrc
 test.json
-html2pdf/prince
+splat/prince
 prince*.tar.gz
-html2pdf.zip
+splat.zip
