@@ -22,8 +22,9 @@ def create_zip():
         print('Using existing princeXML download')
     print('Extracting...')
     run(f'tar -xf {PRINCE_FILENAME}.tar.gz')
-    print('Copying...')
-    run(f'cp -r {PRINCE_FILENAME}/lib/prince/ splat/')
+    print('Copying files around...')
+    run('mkdir -p splat/prince/bin')
+    run(f'cp -r {PRINCE_FILENAME}/lib/ splat/prince/')
     print('Cleaning up...')
     run(f'rm -r {PRINCE_FILENAME}')
     # Zip up project contents
