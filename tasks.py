@@ -83,22 +83,11 @@ def create(ctx):
     api_id = output['id']
     api_root_id = json.loads(run(f'aws apigateway get-resources --rest-api-id {api_id}').stdout)['items'][0]['id']
 
-    # Create resource in API
-    command = (
-        'aws apigateway create-resource '
-        f'--rest-api-id {api_id} '
-        f'--path-part {FUNCTION_NAME}-manager '
-        f'--parent-id {api_root_id} '
-    )
-    print(command)
-    output = json.loads(run(command).stdout)
-    resource_id = output['id']
-
-    # Create POST method on resource
+    # Create POST method on /
     command = (
         'aws apigateway put-method '
         f'--rest-api-id {api_id} '
-        f'--resource-id {resource_id} '
+        f'--resource-id {api_root_id} '
         '--http-method POST '
         '--authorization-type NONE '  # TODO: CHANGE THIS TO KEY LATER!!!
     )
@@ -110,7 +99,7 @@ def create(ctx):
     command = (
         'aws apigateway put-integration '
         f'--rest-api-id {api_id} '
-        f'--resource-id {resource_id} '
+        f'--resource-id {api_root_id} '
         '--http-method POST '
         '--type AWS '
         '--integration-http-method POST '
@@ -123,7 +112,7 @@ def create(ctx):
     command = (
         'aws apigateway put-method-response '
         f'--rest-api-id {api_id} '
-        f'--resource-id {resource_id} '
+        f'--resource-id {api_root_id} '
         '--http-method POST '
         '--status-code 200 '
         '--response-models application/json=Empty '
@@ -135,10 +124,11 @@ def create(ctx):
     command = (
         'aws apigateway put-integration-response '
         f'--rest-api-id {api_id} '
-        f'--resource-id {resource_id} '
+        f'--resource-id {api_root_id} '
         '--http-method POST '
         '--status-code 200 '
         '--response-templates application/json="" '
+        '--content-handling CONVERT_TO_BINARY'
     )
     print(command)
     run(command)
@@ -159,7 +149,7 @@ def create(ctx):
         f'--statement-id {FUNCTION_NAME}-test '
         '--action lambda:InvokeFunction '
         '--principal apigateway.amazonaws.com '
-        f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/*/POST/{FUNCTION_NAME}-manager" '
+        f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/*/POST/" '
     )
     print(command)
     run(command)
@@ -169,7 +159,7 @@ def create(ctx):
         f'--statement-id {FUNCTION_NAME}-prod '
         '--action lambda:InvokeFunction '
         '--principal apigateway.amazonaws.com '
-        f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/prod/POST/{FUNCTION_NAME}-manager" '
+        f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/prod/POST/" '
     )
     print(command)
     run(command)
