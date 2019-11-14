@@ -16,7 +16,7 @@ def pdf_from_html(body_html, javascript=True):
     command = ['./prince/lib/prince/bin/prince', '/tmp/input.html', '-o', '/tmp/output.pdf']
     if javascript:
         command.append('--javascript')
-    popen = subprocess.Popen(, stdout=subprocess.PIPE)
+    popen = subprocess.Popen(command, stdout=subprocess.PIPE)
     popen.wait()
     return popen.stdout.read().decode()
 
