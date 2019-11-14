@@ -52,14 +52,24 @@ def create(ctx):
         f'--role-name {FUNCTION_NAME}-role '
         '--assume-role-policy-document \'{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]}\''
     )
-    role = run_aws_command(command)['Role']['Arn']
+    output = run_aws_command(command)
+    role_arn = output['Role']['Arn']
+    role_name = output['Role']['RoleName']
+
+    # Attach policy to role
+    command = (
+        'aws iam attach-role-policy '
+        f'--role-name {role_name} '
+        '--policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole '
+    )
+    run_aws_command(command)
 
     # Create lambda
     command = (
         'aws lambda create-function '
         f'--function-name {FUNCTION_NAME} '
         f'--runtime python3.7 '
-        f'--role {role} '
+        f'--role {role_arn} '
         f'--handler lambda_function.lambda_handler '
         f'--zip-file fileb://{ZIP_FILENAME} '
     )
