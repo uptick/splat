@@ -5,12 +5,7 @@ from invoke import run, task
 
 PRINCE_FILENAME = 'prince-12.5-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
-FUNCTION_NAME = 'splat2'
-
-
-def prompt(message):
-    print(message)
-    return input()
+FUNCTION_NAME = 'splat'
 
 
 def create_zip():
@@ -32,14 +27,10 @@ def create_zip():
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
 
 
-@task
-def setup(ctx):
-    function_arn = prompt('FUNCTION_ARN')
-    with open('.envrc', 'w') as f:
-        f.write(
-            f'export FUNCTION_ARN={function_arn}\n'
-            )
-    print('done - please source .envrc with ". .envrc"')
+def run_aws_command(command):
+    # Runs an aws command using invoke.run and returns a dict of the output
+    print(f'Running {command}')
+    return json.loads(run(command).stdout)
 
 
 @task
@@ -53,22 +44,26 @@ def deploy(ctx):
 
 @task
 def create(ctx):
-    runtime = 'python3.7'
-    handler = 'lambda_function.lambda_handler'
-    role = prompt('lambda role ARN:')
     create_zip()
+
+    # Create role
+    command = (
+        'aws iam create-role '
+        f'--role-name {FUNCTION_NAME}-role '
+        '--assume-role-policy-document \'{"Version": "2012-10-17", "Statement": [{"Effect": "Allow", "Principal": {"Service": "lambda.amazonaws.com"}, "Action": "sts:AssumeRole"}]}\''
+    )
+    role = run_aws_command(command)['Role']['Arn']
 
     # Create lambda
     command = (
         'aws lambda create-function '
         f'--function-name {FUNCTION_NAME} '
-        f'--runtime {runtime} '
+        f'--runtime python3.7 '
         f'--role {role} '
-        f'--handler {handler} '
+        f'--handler lambda_function.lambda_handler '
         f'--zip-file fileb://{ZIP_FILENAME} '
     )
-    print(command)
-    output = json.loads(run(command).stdout)
+    output = run_aws_command(command)
     lambda_arn = output['FunctionArn']
     region = lambda_arn.split(':')[3]
     account_id = lambda_arn.split(':')[4]
@@ -78,10 +73,9 @@ def create(ctx):
         'aws apigateway create-rest-api '
         f'--name {FUNCTION_NAME}-api '
     )
-    print(command)
-    output = json.loads(run(command).stdout)
+    output = run_aws_command(command)
     api_id = output['id']
-    api_root_id = json.loads(run(f'aws apigateway get-resources --rest-api-id {api_id}').stdout)['items'][0]['id']
+    api_root_id = run_aws_command(f'aws apigateway get-resources --rest-api-id {api_id}')['items'][0]['id']
 
     # Create POST method on /
     command = (
@@ -91,8 +85,7 @@ def create(ctx):
         '--http-method POST '
         '--authorization-type NONE '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Set our lambda as the destination of the POST method
     uri = f'arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/arn:aws:lambda:{region}:{account_id}:function:{FUNCTION_NAME}/invocations'
@@ -105,8 +98,7 @@ def create(ctx):
         '--integration-http-method POST '
         f'--uri {uri} '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Set API response type to JSON
     command = (
@@ -117,8 +109,7 @@ def create(ctx):
         '--status-code 200 '
         '--response-models application/json=Empty '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Set lambda response type to JSON
     command = (
@@ -130,8 +121,7 @@ def create(ctx):
         '--response-templates application/json="" '
         '--content-handling CONVERT_TO_BINARY '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Deploy the API
     command = (
@@ -139,8 +129,7 @@ def create(ctx):
         f'--rest-api-id {api_id} '
         '--stage-name prod '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Create usage plan
     command = (
@@ -148,8 +137,7 @@ def create(ctx):
         f'--name {FUNCTION_NAME}-usageplan '
         f'--api-stages apiId={api_id},stage=prod '
     )
-    print(command)
-    output = json.loads(run(command).stdout)
+    output = run_aws_command(command)
     usage_plan_id = output['id']
 
     # Create API key
@@ -158,8 +146,7 @@ def create(ctx):
         f'--name {FUNCTION_NAME}-key '
         '--enabled '
     )
-    print(command)
-    output = json.loads(run(command).stdout)
+    output = run_aws_command(command)
     api_key = output['value']
     api_key_id = output['id']
 
@@ -170,8 +157,7 @@ def create(ctx):
         f'--key-id {api_key_id} '
         '--key-type API_KEY '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     # Grant invoke permissions to the API
     command = (
@@ -182,8 +168,7 @@ def create(ctx):
         '--principal apigateway.amazonaws.com '
         f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/*/POST/" '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
     command = (
         'aws lambda add-permission '
         f'--function-name {FUNCTION_NAME} '
@@ -192,9 +177,17 @@ def create(ctx):
         '--principal apigateway.amazonaws.com '
         f'--source-arn "arn:aws:execute-api:{region}:{account_id}:{api_id}/prod/POST/" '
     )
-    print(command)
-    run(command)
+    run_aws_command(command)
 
     print('Done!')
     print(f'API Key: {api_key}')
     print(f'API URL: https://{api_id}.execute-api.{region}.amazonaws.com/prod')
+    print('Test command:')
+    print(
+        'curl -X POST -k '
+        '-H "Accept: application/pdf" '
+        '-H "Content-Type: application/json" '
+        f'-H "X-API-Key: {api_key}" '
+        f'-i "{api_url}" '
+        '--data \'{"document_content": "<h1>Hello world!</h1>"}\' > test.pdf'
+    )
