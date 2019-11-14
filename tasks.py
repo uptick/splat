@@ -5,7 +5,7 @@ from invoke import run, task
 
 PRINCE_FILENAME = 'prince-12.5-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
-FUNCTION_NAME = 'splat'
+FUNCTION_NAME = 'splat2'
 
 
 def prompt(message):
@@ -89,7 +89,7 @@ def create(ctx):
         f'--rest-api-id {api_id} '
         f'--resource-id {api_root_id} '
         '--http-method POST '
-        '--authorization-type NONE '  # TODO: CHANGE THIS TO KEY LATER!!!
+        '--authorization-type NONE '
     )
     print(command)
     run(command)
@@ -128,7 +128,7 @@ def create(ctx):
         '--http-method POST '
         '--status-code 200 '
         '--response-templates application/json="" '
-        '--content-handling CONVERT_TO_BINARY'
+        '--content-handling CONVERT_TO_BINARY '
     )
     print(command)
     run(command)
@@ -138,6 +138,37 @@ def create(ctx):
         'aws apigateway create-deployment '
         f'--rest-api-id {api_id} '
         '--stage-name prod '
+    )
+    print(command)
+    run(command)
+
+    # Create usage plan
+    command = (
+        'aws apigateway create-usage-plan '
+        f'--name {FUNCTION_NAME}-usageplan '
+        f'--api-stages apiId={api_id},stage=prod '
+    )
+    print(command)
+    output = json.loads(run(command).stdout)
+    usage_plan_id = output['id']
+
+    # Create API key
+    command = (
+        'aws apigateway create-api-key '
+        f'--name {FUNCTION_NAME}-key '
+        '--enabled '
+    )
+    print(command)
+    output = json.loads(run(command).stdout)
+    api_key = output['value']
+    api_key_id = output['id']
+
+    # Enable the API key for the usage plan
+    command = (
+        'aws apigateway create-usage-plan-key '
+        f'--usage-plan-id {usage_plan_id} '
+        f'--key-id {api_key_id} '
+        '--key-type API_KEY '
     )
     print(command)
     run(command)
@@ -164,11 +195,6 @@ def create(ctx):
     print(command)
     run(command)
 
-
-@task
-def invoke(ctx):
-    print('request status:')
-    run(f'aws lambda invoke --function-name {FUNCTION_NAME} --invocation-type RequestResponse invoke.json')
-    print('response:')
-    run(f'cat invoke.json && rm invoke.json')
-    print()
+    print('Done!')
+    print(f'API Key: {api_key}')
+    print(f'API URL: https://{api_id}.execute-api.{region}.amazonaws.com/prod')
