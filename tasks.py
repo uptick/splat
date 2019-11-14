@@ -27,9 +27,11 @@ def create_zip():
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
 
 
-def run_aws_command(command):
+def run_aws_command(command, output=True):
     # Runs an aws command using invoke.run and returns a dict of the output
     print(f'Running {command}')
+    if not output:
+        run(command)
     return json.loads(run(command).stdout)
 
 
@@ -62,7 +64,7 @@ def create(ctx):
         f'--role-name {role_name} '
         '--policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole '
     )
-    run_aws_command(command)
+    run_aws_command(command, output=False)
 
     # Create lambda
     command = (
