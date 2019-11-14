@@ -1,5 +1,6 @@
 import json
 import os
+import time
 
 from invoke import run, task
 
@@ -48,7 +49,7 @@ def deploy(ctx):
 @task
 def create(ctx):
     create_zip()
-
+    import ipdb; ipdb.set_trace()
     # Create role
     command = (
         'aws iam create-role '
@@ -66,6 +67,8 @@ def create(ctx):
         '--policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole '
     )
     run_aws_command(command, output=False)
+    # This sucks, but aws doesn't wait until the policy is attached, so we just sleep for a bit.
+    time.sleep(3)
 
     # Create lambda
     command = (
