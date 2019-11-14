@@ -34,7 +34,7 @@ def lambda_handler(event, context):
             'body': json.dumps({'errors': ['Please specify body_html'], 'event': event}),
             'isBase64Encoded': False,
         }
-    output = pdf_from_html(body_html)
+    output = pdf_from_html(body_html, javascript)
     if output:
         return {
             'statusCode': 500,
