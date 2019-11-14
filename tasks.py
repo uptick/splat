@@ -32,6 +32,7 @@ def run_aws_command(command, output=True):
     print(f'Running {command}')
     if not output:
         run(command)
+        return
     return json.loads(run(command).stdout)
 
 
