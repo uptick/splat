@@ -3,7 +3,7 @@ splat is simple aws lambda function that invokes PrinceXML, and a convenient col
 
 It is intended to be a DIY docraptor of sorts, and for the most part should be a drop in replacement for PDF generation.
 
-# Installation
+## Installation
 The bulk of splat code lives in invoke scripts to create the necessary AWS objects to support it. These assume you have already configured your awscli environment, and will create the objects in the default region.
 
 1. Clone the repo
