@@ -3,6 +3,7 @@ import os
 import time
 
 from invoke import run, task
+from invoke.exceptions import UnexpectedExit
 
 PRINCE_FILENAME = 'prince-12.5-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
@@ -49,7 +50,6 @@ def deploy(ctx):
 @task
 def create(ctx):
     create_zip()
-    import ipdb; ipdb.set_trace()
     # Create role
     command = (
         'aws iam create-role '
@@ -67,8 +67,9 @@ def create(ctx):
         '--policy-arn arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole '
     )
     run_aws_command(command, output=False)
-    # This sucks, but aws doesn't wait until the policy is attached, so we just sleep for a bit.
-    time.sleep(3)
+
+    # It can take a few seconds for AWS to replicate the role through all regions, so the lambda creation can fail
+    # Just keep trying until it goes through.
 
     # Create lambda
     command = (
@@ -79,7 +80,19 @@ def create(ctx):
         f'--handler lambda_function.lambda_handler '
         f'--zip-file fileb://{ZIP_FILENAME} '
     )
-    output = run_aws_command(command)
+    lambda_created = False
+    attempts = 0
+    while not lambda_created:
+        try:
+            output = run_aws_command(command)
+            lambda_created = True
+        except UnexpectedExit as e:
+            print('lambda creation failed, waiting on role to be available...')
+            attempts += 1
+            if attempts >= 5:
+                raise Exception(f"Lambda creation failed: {e}")
+            time.sleep(3)
+
     lambda_arn = output['FunctionArn']
     region = lambda_arn.split(':')[3]
     account_id = lambda_arn.split(':')[4]
@@ -195,9 +208,11 @@ def create(ctx):
     )
     run_aws_command(command)
 
+    api_url = f'https://{api_id}.execute-api.{region}.amazonaws.com/prod'
+
     print('Done!')
     print(f'API Key: {api_key}')
-    print(f'API URL: https://{api_id}.execute-api.{region}.amazonaws.com/prod')
+    print(f'API URL: {api_url}')
     print('Test command:')
     print(
         'curl -X POST -k '
