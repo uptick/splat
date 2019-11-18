@@ -4,19 +4,19 @@ import boto3
 import base64
 
 
-def pdf_from_string(document_content, javascript=True):
+def pdf_from_string(document_content, javascript=False):
     # Save document_content to file
     with open('/tmp/input.html', 'w') as f:
         f.write(document_content)
     return prince_handler('/tmp/input.html')
 
 
-def pdf_from_url(document_url, javascript=True):
+def pdf_from_url(document_url, javascript=False):
     # Fetch URL and save to file
     raise NotImplementedError()
 
 
-def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=True,):
+def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False,):
     command = ['./prince/lib/prince/bin/prince', input_filepath, '-o', output_filepath]
     if javascript:
         command.append('--javascript')
@@ -29,7 +29,7 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
 
 # Entrypoint for AWS
 def lambda_handler(event, context):
-    javascript = bool(event.get('javascript', True))
+    javascript = bool(event.get('javascript', False))
     # Create PDF
     if event.get('document_content'):
         output_filepath = pdf_from_string(event.get('document_content'), javascript)

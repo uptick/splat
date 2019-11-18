@@ -13,3 +13,8 @@ The bulk of splat code lives in invoke scripts to create the necessary AWS objec
 7. Done. The script will return all relevant information for you to invoke your lambda with all the HTML/CSS/Javascript you want.
 
 If you make changes to the lambda code, run `inv deploy` to update it with everything inside the inner splat directory. No need to re-run the create script.
+
+AWS permissions required to create objects:
+- iam: create role
+- lambda: create lambda
+- apigateway: create apigateway
