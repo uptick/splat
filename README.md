@@ -18,3 +18,7 @@ AWS permissions required to create objects:
 - iam: create role
 - lambda: create lambda
 - apigateway: create apigateway
+
+## PrinceXML License
+splat will install a license file if it finds one. Just drop your `license.dat` in the root directory and run `deploy` or `install`. The licence file is gitignored for your convenience.
+If you do not have a licence file, Prince will watermark your PDFs, and you can only use them non-commercially. See their [license page](https://www.princexml.com/purchase/license_faq/) for more information.
