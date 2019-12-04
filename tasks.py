@@ -24,6 +24,10 @@ def create_zip():
     run(f'cp -r {PRINCE_FILENAME}/lib/ splat/prince/')
     print('Cleaning up...')
     run(f'rm -r {PRINCE_FILENAME}')
+    # Copy license file, if exists
+    if os.path.exists('license.dat'):
+        print('Copying license file...')
+        run(f'cp license.dat splat/prince/lib/prince/license/')
     # Zip up project contents
     print('Compressing project...')
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
