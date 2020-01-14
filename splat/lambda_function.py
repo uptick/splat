@@ -1,7 +1,13 @@
-import json
-import subprocess
-import boto3
 import base64
+import json
+import os
+import subprocess
+
+import boto3
+
+
+def init():
+    os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
 
 
 def pdf_from_string(document_content, javascript=False):
@@ -29,6 +35,7 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
 
 # Entrypoint for AWS
 def lambda_handler(event, context):
+    init()
     javascript = bool(event.get('javascript', False))
     # Create PDF
     if event.get('document_content'):

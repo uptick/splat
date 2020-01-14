@@ -1,5 +1,7 @@
 invoke.json
 splat/prince
+splat/fonts/*
+!splat/fonts/fonts.conf
 prince*.tar.gz
 splat.zip
 test.pdf
