@@ -11,6 +11,7 @@ def init():
 
 
 def pdf_from_string(document_content, javascript=False):
+    print("splat|pdf_from_string")
     # Save document_content to file
     with open('/tmp/input.html', 'w') as f:
         f.write(document_content)
@@ -18,25 +19,40 @@ def pdf_from_string(document_content, javascript=False):
 
 
 def pdf_from_url(document_url, javascript=False):
+    print("splat|pdf_from_url")
     # Fetch URL and save to file
     raise NotImplementedError()
 
 
 def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False,):
-    command = ['./prince/lib/prince/bin/prince', input_filepath, '-o', output_filepath]
+    print("splat|prince_command_run")
+    # Prepare command
+    command = [
+        './prince/lib/prince/bin/prince',
+        input_filepath,
+        '-o',
+        output_filepath,
+        '--structured-log=buffered',
+        '--verbose'
+    ]
     if javascript:
         command.append('--javascript')
-    popen = subprocess.Popen(command, stdout=subprocess.PIPE)
-    popen.wait()
-    # TODO: Handle prince errors, stdout, stderr, catch exceptions
-    # stdout = popen.stdout.read().decode()
+    # Run command and capture output
+    try:
+        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        output = e.output
+    # Log prince output
+    print(output.decode())
     return output_filepath
 
 
 # Entrypoint for AWS
 def lambda_handler(event, context):
+    print("splat|begin")
     init()
     javascript = bool(event.get('javascript', False))
+    print(f"splat|javascript={javascript}")
     # Create PDF
     if event.get('document_content'):
         output_filepath = pdf_from_string(event.get('document_content'), javascript)
