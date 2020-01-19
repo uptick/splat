@@ -9,6 +9,7 @@ flake8 = "*"
 ipdb = "*"
 requests = "*"
 awscli = "*"
+boto3 = "*"
 
 [requires]
 python_version = "3.7"
