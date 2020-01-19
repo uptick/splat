@@ -5,7 +5,7 @@ import time
 from invoke import run, task
 from invoke.exceptions import UnexpectedExit
 
-PRINCE_FILENAME = 'prince-12.5-linux-generic-x86_64'
+PRINCE_FILENAME = 'prince-13.1-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
 FUNCTION_NAME = 'splat'
 
