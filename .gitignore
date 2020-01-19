@@ -2,7 +2,11 @@ invoke.json
 splat/prince
 splat/fonts/*
 !splat/fonts/fonts.conf
-prince*.tar.gz
+# Downloaded prince binaries and their extracted directories
+prince*
+# Final zip for lambda
 splat.zip
+# Test pdf from sample command at end of installation
 test.pdf
+# Prince licence file
 license.dat

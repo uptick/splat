@@ -19,6 +19,8 @@ def create_zip():
         print('Using existing princeXML download')
     print('Extracting...')
     run(f'tar -xf {PRINCE_FILENAME}.tar.gz')
+    print('Removing old prince...')
+    run(f'rm -rf splat/prince/')
     print('Copying files around...')
     run('mkdir -p splat/prince/bin')
     run(f'cp -r {PRINCE_FILENAME}/lib/ splat/prince/')
