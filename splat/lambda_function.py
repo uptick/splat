@@ -52,28 +52,40 @@ def lambda_handler(event, context):
     try:
         print("splat|begin")
         init()
-        javascript = bool(event.get('javascript', False))
+        # Parse payload - assumes json
+        try:
+            body = json.loads(event.get('body'))
+        except json.JSONDecodeError as e:
+            return {
+                'statusCode': 400,
+                'headers': {
+                    'Content-Type': 'application/json',
+                },
+                'body': json.dumps({'errors': [f'Failed to decode request body as JSON: {str(e)}']}),
+                'isBase64Encoded': False,
+            }
+        javascript = bool(body.get('javascript', False))
         print(f"splat|javascript={javascript}")
         # Create PDF
-        if event.get('document_content'):
-            output_filepath = pdf_from_string(event.get('document_content'), javascript)
-        elif event.get('document_url'):
-            output_filepath = pdf_from_url(event.get('document_url'), javascript)
+        if body.get('document_content'):
+            output_filepath = pdf_from_string(body.get('document_content'), javascript)
+        elif body.get('document_url'):
+            output_filepath = pdf_from_url(body.get('document_url'), javascript)
         else:
             return {
                 'statusCode': 400,
                 'headers': {
                     'content-type': 'application/json',
                 },
-                'body': json.dumps({'errors': ['Please specify either "document_content" or "document_url"']}),
+                'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
                 'isBase64Encoded': False,
             }
 
         # Return PDF
-        if event.get('bucket_name'):
+        if body.get('bucket_name'):
             print('splat|bucket_save')
             # Upload to s3 and return URL
-            bucket_name = event.get('bucket_name')
+            bucket_name = body.get('bucket_name')
             key = 'output.pdf'
             s3 = boto3.resource('s3')
             bucket = s3.Bucket(bucket_name)
@@ -89,7 +101,7 @@ def lambda_handler(event, context):
                 'body': json.dumps({'url': url}),
                 'isBase64Encoded': False,
             }
-        elif event.get('presigned_url'):
+        elif body.get('presigned_url'):
             print('splat|presigned_url_save')
             raise NotImplementedError()
         else:
@@ -98,12 +110,19 @@ def lambda_handler(event, context):
             with open(output_filepath, 'rb') as f:
                 binary_data = f.read()
 
-            return base64.b64encode(binary_data).decode()
+            return {
+                'statusCode': 200,
+                'headers': {
+                    'Content-Type': 'application/pdf',
+                },
+                'body': base64.b64encode(binary_data).decode('utf-8'),
+                'isBase64Encoded': True,
+            }
 
     except NotImplementedError:
         print('splat|not_implemented_error')
         return {
-            'statusCode': 400,
+            'statusCode': 501,
             'headers': {
                 'content-type': 'application/json',
             },
