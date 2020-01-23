@@ -15,7 +15,7 @@ def pdf_from_string(document_content, javascript=False):
     # Save document_content to file
     with open('/tmp/input.html', 'w') as f:
         f.write(document_content)
-    return prince_handler('/tmp/input.html')
+    return prince_handler('/tmp/input.html', javascript=javascript)
 
 
 def pdf_from_url(document_url, javascript=False):
@@ -24,7 +24,7 @@ def pdf_from_url(document_url, javascript=False):
     raise NotImplementedError()
 
 
-def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False,):
+def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False):
     print("splat|prince_command_run")
     # Prepare command
     command = [
