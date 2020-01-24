@@ -5,7 +5,6 @@ from time import sleep
 
 import boto3
 from invoke import run, task
-from invoke.exceptions import UnexpectedExit
 
 PRINCE_FILENAME = 'prince-13.1-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'

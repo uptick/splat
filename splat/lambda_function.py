@@ -33,11 +33,12 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
         '-o',
         output_filepath,
         '--structured-log=buffered',
-        '--verbose'
+        '--verbose',
     ]
     if javascript:
         command.append('--javascript')
     # Run command and capture output
+    print(f"splat|invoke_prince {' '.join(command)}")
     try:
         output = subprocess.check_output(command, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
