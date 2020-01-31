@@ -6,7 +6,7 @@ from time import sleep
 import boto3
 from invoke import run, task
 
-PRINCE_FILENAME = 'prince-13.1-linux-generic-x86_64'
+PRINCE_FILENAME = 'prince-11.4-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
 FUNCTION_NAME = 'splat'
 
@@ -192,3 +192,40 @@ def create(ctx):
         f'-i "{api_url}" '
         '--data \'{"document_content": "<h1>Hello world!</h1>"}\' > test.pdf'
     )
+
+
+@task
+def test(ctx):
+    from splat.lambda_function import lambda_handler
+    import os
+    os.chdir('splat')
+
+    print("Hello world test...")
+    result = lambda_handler(
+        {'body': '{"document_content": "<h1>Hello world!</h1>"}'},
+        None
+    )
+    assert result['statusCode'] == 200
+    assert result['headers']['Content-Type'] == 'application/pdf'
+    assert result['isBase64Encoded']
+
+    print("Bad json test...")
+    result = lambda_handler(
+        {'body': '{"document_content": invalid{}}}json"""}'},
+        None
+    )
+    assert result['statusCode'] == 400
+    assert result['headers']['Content-Type'] == 'application/json'
+    assert result['isBase64Encoded'] is False
+    assert "Failed to decode" in result['body']
+
+    print("Bad request body test...")
+    result = lambda_handler(
+        {'oopsie': 123},
+        None
+    )
+    assert result['statusCode'] == 500
+    assert result['headers']['Content-Type'] == 'application/json'
+    assert result['isBase64Encoded'] is False
+
+    print("Tests passed")

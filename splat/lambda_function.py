@@ -24,6 +24,16 @@ def pdf_from_url(document_url, javascript=False):
     raise NotImplementedError()
 
 
+def execute(cmd):
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
+    for stdout_line in iter(popen.stdout.readline, ""):
+        yield stdout_line
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+
 def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False):
     print("splat|prince_command_run")
     # Prepare command
@@ -32,7 +42,7 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
         input_filepath,
         '-o',
         output_filepath,
-        '--structured-log=buffered',
+        '--structured-log=normal',
         '--verbose',
     ]
     if javascript:
@@ -40,11 +50,11 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
     # Run command and capture output
     print(f"splat|invoke_prince {' '.join(command)}")
     try:
-        output = subprocess.check_output(command, stderr=subprocess.STDOUT)
+        for stdout_line in execute(command):
+            print(stdout_line, end="")
     except subprocess.CalledProcessError as e:
-        output = e.output
+        print(f"splat|calledProcessError|{str(e)}")
     # Log prince output
-    print(output.decode())
     return output_filepath
 
 
@@ -76,7 +86,7 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 400,
                 'headers': {
-                    'content-type': 'application/json',
+                    'Content-Type': 'application/json',
                 },
                 'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
                 'isBase64Encoded': False,
@@ -97,7 +107,7 @@ def lambda_handler(event, context):
             return {
                 'statusCode': 200,
                 'headers': {
-                    'content-type': 'application/json',
+                    'Content-Type': 'application/json',
                 },
                 'body': json.dumps({'url': url}),
                 'isBase64Encoded': False,
@@ -125,18 +135,18 @@ def lambda_handler(event, context):
         return {
             'statusCode': 501,
             'headers': {
-                'content-type': 'application/json',
+                'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': ['The requested feature is not implemented, yet.']}),
             'isBase64Encoded': False,
         }
 
     except Exception as e:
-        print('splat|unknown_error')
+        print(f'splat|unknown_error|{str(e)}')
         return {
             'statusCode': 500,
             'headers': {
-                'content-type': 'application/json',
+                'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': [f'An unknown error occured: {str(e)}']}),
             'isBase64Encoded': False,
