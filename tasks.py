@@ -31,9 +31,12 @@ def create_zip():
     if os.path.exists('license.dat'):
         print('Copying license file...')
         run(f'cp license.dat splat/prince/lib/prince/license/')
+    print('Downloading dependencies...')
+    run(f'pip install --target ./packages --upgrade requests')
     # Zip up project contents
     print('Compressing project...')
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
+    run(f'cd packages && zip -g ../{ZIP_FILENAME} *')
 
 
 def run_aws_command(command, output=True):
