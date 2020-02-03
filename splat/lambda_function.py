@@ -2,8 +2,10 @@ import base64
 import json
 import os
 import subprocess
+from urllib.parse import urlparse
 
 import boto3
+import requests
 
 
 def init():
@@ -64,17 +66,7 @@ def lambda_handler(event, context):
         print("splat|begin")
         init()
         # Parse payload - assumes json
-        try:
-            body = json.loads(event.get('body'))
-        except json.JSONDecodeError as e:
-            return {
-                'statusCode': 400,
-                'headers': {
-                    'Content-Type': 'application/json',
-                },
-                'body': json.dumps({'errors': [f'Failed to decode request body as JSON: {str(e)}']}),
-                'isBase64Encoded': False,
-            }
+        body = json.loads(event.get('body'))
         javascript = bool(body.get('javascript', False))
         print(f"splat|javascript={javascript}")
         # Create PDF
@@ -114,7 +106,42 @@ def lambda_handler(event, context):
             }
         elif body.get('presigned_url'):
             print('splat|presigned_url_save')
-            raise NotImplementedError()
+            presigned_url = body.get('presigned_url')
+            if not urlparse(presigned_url['url']).netloc.endswith('amazonaws.com'):
+                return {
+                    'statusCode': 400,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                    },
+                    'body': json.dumps({'errors': ['Invalid presigned URL']}),
+                    'isBase64Encoded': False,
+                }
+            with open(output_filepath, 'rb') as f:
+                files = {'file': (output_filepath, f)}
+                print('splat|posting_to_s3')
+                response = requests.post(
+                    presigned_url['url'],
+                    data=presigned_url['fields'],
+                    files=files
+                )
+                print(f'splat|response|{response.content}')
+            if response.status_code != 204:
+                return {
+                    'statusCode': response.status_code,
+                    'headers': response.headers,
+                    'body': response.content,
+                    'isBase64Encoded': False,
+                }
+            else:
+                return {
+                    'statusCode': 201,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                    },
+                    'body': '',
+                    'isBase64Encoded': False,
+                }
+
         else:
             print('splat|stream_binary_response')
             # Otherwise just stream the pdf data back.
@@ -138,6 +165,16 @@ def lambda_handler(event, context):
                 'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': ['The requested feature is not implemented, yet.']}),
+            'isBase64Encoded': False,
+        }
+
+    except json.JSONDecodeError as e:
+        return {
+            'statusCode': 400,
+            'headers': {
+                'Content-Type': 'application/json',
+            },
+            'body': json.dumps({'errors': [f'Failed to decode request body as JSON: {str(e)}']}),
             'isBase64Encoded': False,
         }
 
