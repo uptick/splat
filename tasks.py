@@ -9,6 +9,8 @@ from invoke import run, task
 PRINCE_FILENAME = 'prince-11.4-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
 FUNCTION_NAME = 'splat'
+LAYER_FILENAME = 'requests_layer.zip'
+LAYER_NAME = 'requests_layer'
 
 
 def create_zip():
@@ -21,7 +23,7 @@ def create_zip():
     print('Extracting...')
     run(f'tar -xf {PRINCE_FILENAME}.tar.gz')
     print('Removing old prince...')
-    run(f'rm -rf splat/prince/')
+    run('rm -rf splat/prince/')
     print('Copying files around...')
     run('mkdir -p splat/prince/bin')
     run(f'cp -r {PRINCE_FILENAME}/lib/ splat/prince/')
@@ -30,13 +32,15 @@ def create_zip():
     # Copy license file, if exists
     if os.path.exists('license.dat'):
         print('Copying license file...')
-        run(f'cp license.dat splat/prince/lib/prince/license/')
-    print('Downloading dependencies...')
-    run(f'pip install --target ./packages --upgrade requests')
+        run('cp license.dat splat/prince/lib/prince/license/')
     # Zip up project contents
     print('Compressing project...')
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
-    run(f'cd packages && zip -g ../{ZIP_FILENAME} *')
+    # Create layer
+    print('Packaging dependencies...')
+    run('rm -rf python && mkdir python')
+    run('pip install -r requirements.txt --no-deps -t python')
+    run(f'zip -r {LAYER_FILENAME} python')
 
 
 def run_aws_command(command, output=True):
@@ -55,12 +59,27 @@ def deploy(ctx):
     print('Updating lambda...')
     lambda_client = boto3.client('lambda')
     with open(ZIP_FILENAME, 'rb') as zipfile:
-        response = lambda_client.update_function_code(
+        lambda_response = lambda_client.update_function_code(
             FunctionName=FUNCTION_NAME,
             ZipFile=zipfile.read(),
         )
+    pprint(lambda_response)
+    print('Updating layer...')
+    with open(LAYER_FILENAME, 'rb') as zipfile:
+        layer_response = lambda_client.publish_layer_version(
+            LayerName=LAYER_NAME,
+            Description=f'Dependency layer for {FUNCTION_NAME}.',
+            Content={'ZipFile': zipfile.read()},
+            CompatibleRuntimes=['python3.8'],
+        )
+    pprint(layer_response)
+    print('Updating lambda configuration...')
+    config_response = lambda_client.update_function_configuration(
+        FunctionName=FUNCTION_NAME,
+        Layers=[layer_response['LayerVersionArn']]
+    )
+    pprint(config_response)
     print('Done!')
-    pprint(response)
 
 
 @task

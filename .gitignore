@@ -4,10 +4,12 @@ splat/fonts/*
 !splat/fonts/fonts.conf
 # Downloaded prince binaries and their extracted directories
 prince*
-# Final zip for lambda
+# Resulting zip files
 splat.zip
+requests_layer.zip
 # Test pdf from sample command at end of installation
 test.pdf
 # Prince licence file
 license.dat
-packages/
+# Layer working directory
+python/

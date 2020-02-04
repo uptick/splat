@@ -2,6 +2,7 @@ import base64
 import json
 import os
 import subprocess
+import sys
 from urllib.parse import urlparse
 
 import boto3
@@ -83,7 +84,6 @@ def lambda_handler(event, context):
                 'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
                 'isBase64Encoded': False,
             }
-
         # Return PDF
         if body.get('bucket_name'):
             print('splat|bucket_save')
@@ -147,13 +147,23 @@ def lambda_handler(event, context):
             # Otherwise just stream the pdf data back.
             with open(output_filepath, 'rb') as f:
                 binary_data = f.read()
-
+            b64_encoded_pdf = base64.b64encode(binary_data).decode('utf-8')
+            # Check size. lambda has a 6mb limit. Check if > 5.5mb
+            if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
+                return {
+                    'statusCode': 500,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                    },
+                    'body': json.dumps({'errors': ['The resulting PDF is too large to stream back from lambda. Please use "presigned_url" to upload it to s3 instead.']}),
+                    'isBase64Encoded': False,
+                }
             return {
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/pdf',
                 },
-                'body': base64.b64encode(binary_data).decode('utf-8'),
+                'body': b64_encoded_pdf,
                 'isBase64Encoded': True,
             }
 
