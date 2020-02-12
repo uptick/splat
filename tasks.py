@@ -64,19 +64,27 @@ def deploy(ctx):
             ZipFile=zipfile.read(),
         )
     pprint(lambda_response)
+    print('Done!')
+
+
+@task
+def update_configuration(ctx):
     print('Updating layer...')
+    lambda_client = boto3.client('lambda')
     with open(LAYER_FILENAME, 'rb') as zipfile:
         layer_response = lambda_client.publish_layer_version(
             LayerName=LAYER_NAME,
             Description=f'Dependency layer for {FUNCTION_NAME}.',
             Content={'ZipFile': zipfile.read()},
-            CompatibleRuntimes=['python3.8'],
+            CompatibleRuntimes=['python3.7'],
         )
     pprint(layer_response)
     print('Updating lambda configuration...')
     config_response = lambda_client.update_function_configuration(
         FunctionName=FUNCTION_NAME,
-        Layers=[layer_response['LayerVersionArn']]
+        Layers=[layer_response['LayerVersionArn']],
+        Timeout=10,
+        MemorySize=512,
     )
     pprint(config_response)
     print('Done!')
@@ -113,7 +121,7 @@ def create(ctx):
             with open(ZIP_FILENAME, 'rb') as zipfile:
                 result = lambda_client.create_function(
                     FunctionName=FUNCTION_NAME,
-                    Runtime='python3.8',
+                    Runtime='python3.7',
                     Role=role_arn,
                     Handler='lambda_function.lambda_handler',
                     Code={'ZipFile': zipfile.read()},
@@ -202,7 +210,9 @@ def create(ctx):
 
     api_url = f'https://{api_id}.execute-api.{region}.amazonaws.com/prod'
 
-    print('Done!')
+    update_configuration(ctx)
+
+    print('Finished!')
     print(f'API Key: {api_key}')
     print(f'API URL: {api_url}')
     print('Test command:')
