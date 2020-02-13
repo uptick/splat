@@ -39,7 +39,7 @@ def create_zip():
     # Create layer
     print('Packaging dependencies...')
     run('rm -rf python && mkdir python')
-    run('pip install -r requirements.txt --no-deps -t python')
+    run('pip install -r requirements.txt -t python')
     run(f'zip -r {LAYER_FILENAME} python')
 
 
