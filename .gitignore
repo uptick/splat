@@ -7,8 +7,8 @@ prince*
 # Resulting zip files
 splat.zip
 requests_layer.zip
-# Test pdf from sample command at end of installation
-test.pdf
+# Generated PDFs from tests can be ignored
+*.pdf
 # Prince licence file
 license.dat
 # Layer working directory

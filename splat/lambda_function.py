@@ -3,14 +3,18 @@ import json
 import os
 import subprocess
 import sys
+from itertools import chain
 from urllib.parse import urlparse
+from uuid import uuid4
 
 import boto3
 import requests
 
 
 def init():
-    os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
+    # If there's any files in the font directory, export FONTCONFIG_PATH
+    if any(f for f in os.listdir('fonts') if f != 'fonts.conf'):
+        os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
 
 
 def pdf_from_string(document_content, javascript=False):
@@ -28,16 +32,18 @@ def pdf_from_url(document_url, javascript=False):
 
 
 def execute(cmd):
-    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, universal_newlines=True)
-    for stdout_line in iter(popen.stdout.readline, ""):
-        yield stdout_line
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    for line in chain(iter(popen.stdout.readline, ""), iter(popen.stderr.readline, "")):
+        yield line
     popen.stdout.close()
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
 
 
-def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript=False):
+def prince_handler(input_filepath, output_filepath=None, javascript=False):
+    if not output_filepath:
+        output_filepath = f'{uuid4()}.pdf'
     print("splat|prince_command_run")
     # Prepare command
     command = [
@@ -52,11 +58,8 @@ def prince_handler(input_filepath, output_filepath='/tmp/output.pdf', javascript
         command.append('--javascript')
     # Run command and capture output
     print(f"splat|invoke_prince {' '.join(command)}")
-    try:
-        for stdout_line in execute(command):
-            print(stdout_line, end="")
-    except subprocess.CalledProcessError as e:
-        print(f"splat|calledProcessError|{str(e)}")
+    for line in execute(command):
+        print("splat|prince_output|", line, end="")
     # Log prince output
     return output_filepath
 
@@ -71,19 +74,32 @@ def lambda_handler(event, context):
         javascript = bool(body.get('javascript', False))
         print(f"splat|javascript={javascript}")
         # Create PDF
-        if body.get('document_content'):
-            output_filepath = pdf_from_string(body.get('document_content'), javascript)
-        elif body.get('document_url'):
-            output_filepath = pdf_from_url(body.get('document_url'), javascript)
-        else:
+        try:
+            if body.get('document_content'):
+                output_filepath = pdf_from_string(body.get('document_content'), javascript)
+            elif body.get('document_url'):
+                output_filepath = pdf_from_url(body.get('document_url'), javascript)
+            else:
+                return {
+                    'statusCode': 400,
+                    'headers': {
+                        'Content-Type': 'application/json',
+                    },
+                    'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
+                    'isBase64Encoded': False,
+                }
+        except subprocess.CalledProcessError as e:
+            print(f"splat|calledProcessError|{str(e)}")
             return {
-                'statusCode': 400,
+                'statusCode': 500,
                 'headers': {
                     'Content-Type': 'application/json',
                 },
-                'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
+                'body': json.dumps({'errors': [str(e)]}),
                 'isBase64Encoded': False,
             }
+
+
         # Return PDF
         if body.get('bucket_name'):
             print('splat|bucket_save')
