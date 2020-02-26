@@ -43,7 +43,7 @@ def execute(cmd):
 
 def prince_handler(input_filepath, output_filepath=None, javascript=False):
     if not output_filepath:
-        output_filepath = f'{uuid4()}.pdf'
+        output_filepath = f'/tmp/{uuid4()}.pdf'
     print("splat|prince_command_run")
     # Prepare command
     command = [
@@ -98,7 +98,6 @@ def lambda_handler(event, context):
                 'body': json.dumps({'errors': [str(e)]}),
                 'isBase64Encoded': False,
             }
-
 
         # Return PDF
         if body.get('bucket_name'):
