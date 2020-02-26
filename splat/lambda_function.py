@@ -133,13 +133,13 @@ def lambda_handler(event, context):
                 }
             with open(output_filepath, 'rb') as f:
                 files = {'file': (output_filepath, f)}
-                print('splat|posting_to_s3')
+                print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
                 response = requests.post(
                     presigned_url['url'],
                     data=presigned_url['fields'],
                     files=files
                 )
-                print(f'splat|response|{response.content}')
+                print(f'splat|s3_response|{response.status_code}')
             if response.status_code != 204:
                 return {
                     'statusCode': response.status_code,
