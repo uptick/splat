@@ -33,6 +33,9 @@ def create_zip():
     if os.path.exists('license.dat'):
         print('Copying license file...')
         run('cp license.dat splat/prince/lib/prince/license/')
+    else:
+        print('Warning! Licence file not found! If you continue, any PDFs generated will have a prince watermark! <enter>')
+        input()
     # Zip up project contents
     print('Compressing project...')
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
