@@ -13,7 +13,7 @@ LAYER_FILENAME = 'requests_layer.zip'
 LAYER_NAME = 'requests_layer'
 
 
-def create_zip():
+def create_zip(prince_license):
     # Download binary if it doesn't exist
     if not os.path.exists(f'{PRINCE_FILENAME}.tar.gz'):
         print('Downloading princeXML...')
@@ -34,8 +34,10 @@ def create_zip():
         print('Copying license file...')
         run('cp license.dat splat/prince/lib/prince/license/')
     else:
-        print('Warning! Licence file not found! If you continue, any PDFs generated will have a prince watermark! <enter>')
-        input()
+        if prince_license:
+            raise Exception('Error! License file not found! To bypass, use --no-prince-license')
+        else:
+            print('Warning! License file not found! PDFs generated will have a prince watermark!')
     # Zip up project contents
     print('Compressing project...')
     run(f'cd splat && zip -FSrq ../{ZIP_FILENAME} *')
@@ -56,8 +58,8 @@ def run_aws_command(command, output=True):
 
 
 @task
-def deploy(ctx):
-    create_zip()
+def deploy(ctx, prince_license=True):
+    create_zip(prince_license)
     # Send to aws
     print('Updating lambda...')
     lambda_client = boto3.client('lambda')
@@ -94,10 +96,10 @@ def update_configuration(ctx):
 
 
 @task
-def create(ctx):
+def create(ctx, prince_license=True):
     # TODO: Print AWS region info + confirm?
-    create_zip()
-
+    create_zip(prince_license)
+    license
     print("Obtaining clients...")
     iam_client = boto3.client('iam')
     lambda_client = boto3.client('lambda')
