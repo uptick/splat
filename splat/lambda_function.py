@@ -11,6 +11,9 @@ import boto3
 import requests
 
 
+S3_RETRY_COUNT = 10
+
+
 def init():
     # If there's any files in the font directory, export FONTCONFIG_PATH
     if any(f for f in os.listdir('fonts') if f != 'fonts.conf'):
@@ -132,15 +135,31 @@ def lambda_handler(event, context):
                     'isBase64Encoded': False,
                 }
             with open(output_filepath, 'rb') as f:
+                attempts = 0
                 files = {'file': (output_filepath, f)}
                 print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
-                response = requests.post(
-                    presigned_url['url'],
-                    data=presigned_url['fields'],
-                    files=files
-                )
-                print(f'splat|s3_response|{response.status_code}')
+                while attempts < S3_RETRY_COUNT:
+                    response = requests.post(
+                        presigned_url['url'],
+                        data=presigned_url['fields'],
+                        files=files
+                    )
+                    print(f'splat|s3_response|{response.status_code}')
+                    if response.status_code in [500, 503]:
+                        attempts += 1
+                        print('splat|s3_retry')
+                    else:
+                        break
+                else:
+                    print('splat|s3_max_retry_reached')
+                    return {
+                        'statusCode': response.status_code,
+                        'headers': response.headers,
+                        'body': response.content,
+                        'isBase64Encoded': False,
+                    }
             if response.status_code != 204:
+                print(f'splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}')
                 return {
                     'statusCode': response.status_code,
                     'headers': response.headers,
