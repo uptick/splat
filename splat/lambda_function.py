@@ -135,6 +135,8 @@ def lambda_handler(event, context):
                     'isBase64Encoded': False,
                 }
             with open(output_filepath, 'rb') as f:
+                # 5xx responses are normal for s3, recommendation is to try 10 times
+                # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
                 attempts = 0
                 files = {'file': (output_filepath, f)}
                 print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
