@@ -20,6 +20,15 @@ def init():
         os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
 
 
+def delete_file(file_path):
+    command = ['rm', file_path]
+    try:
+        for line in execute(command):
+            print("splat|delete_file|", line, end="")
+    except subprocess.CalledProcessError:
+        pass
+
+
 def pdf_from_string(document_content, javascript=False):
     print("splat|pdf_from_string")
     # Save document_content to file
@@ -113,6 +122,7 @@ def lambda_handler(event, context):
             bucket.upload_file('/tmp/output.pdf', key)
             location = boto3.client('s3').get_bucket_location(Bucket=bucket_name)['LocationConstraint']
             url = f'https://{bucket_name}.s3-{location}.amazonaws.com/{key}'
+            delete_file(output_filepath)
 
             return {
                 'statusCode': 200,
@@ -126,6 +136,7 @@ def lambda_handler(event, context):
             print('splat|presigned_url_save')
             presigned_url = body.get('presigned_url')
             if not urlparse(presigned_url['url']).netloc.endswith('amazonaws.com'):
+                delete_file(output_filepath)
                 return {
                     'statusCode': 400,
                     'headers': {
@@ -153,6 +164,7 @@ def lambda_handler(event, context):
                     else:
                         break
                 else:
+                    delete_file(output_filepath)
                     print('splat|s3_max_retry_reached')
                     return {
                         'statusCode': response.status_code,
@@ -162,6 +174,7 @@ def lambda_handler(event, context):
                     }
             if response.status_code != 204:
                 print(f'splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}')
+                delete_file(output_filepath)
                 return {
                     'statusCode': response.status_code,
                     'headers': response.headers,
@@ -169,6 +182,7 @@ def lambda_handler(event, context):
                     'isBase64Encoded': False,
                 }
             else:
+                delete_file(output_filepath)
                 return {
                     'statusCode': 201,
                     'headers': {
@@ -186,6 +200,7 @@ def lambda_handler(event, context):
             b64_encoded_pdf = base64.b64encode(binary_data).decode('utf-8')
             # Check size. lambda has a 6mb limit. Check if > 5.5mb
             if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
+                delete_file(output_filepath)
                 return {
                     'statusCode': 500,
                     'headers': {
@@ -194,6 +209,7 @@ def lambda_handler(event, context):
                     'body': json.dumps({'errors': ['The resulting PDF is too large to stream back from lambda. Please use "presigned_url" to upload it to s3 instead.']}),
                     'isBase64Encoded': False,
                 }
+            delete_file(output_filepath)
             return {
                 'statusCode': 200,
                 'headers': {
@@ -205,6 +221,7 @@ def lambda_handler(event, context):
 
     except NotImplementedError:
         print('splat|not_implemented_error')
+        delete_file(output_filepath)
         return {
             'statusCode': 501,
             'headers': {
@@ -215,6 +232,7 @@ def lambda_handler(event, context):
         }
 
     except json.JSONDecodeError as e:
+        delete_file(output_filepath)
         return {
             'statusCode': 400,
             'headers': {
@@ -226,6 +244,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
         print(f'splat|unknown_error|{str(e)}')
+        delete_file(output_filepath)
         return {
             'statusCode': 500,
             'headers': {
