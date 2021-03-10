@@ -20,11 +20,11 @@ def init():
         os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
 
 
-def delete_file(file_path):
-    command = ['rm', file_path]
+def cleanup():
+    command = ['rm', '/tmp/*.html', '/tmp/*.pdf']
     try:
         for line in execute(command):
-            print("splat|delete_file|", line, end="")
+            print("splat|cleanup|", line, end="")
     except subprocess.CalledProcessError:
         pass
 
@@ -40,7 +40,7 @@ def pdf_from_string(document_content, javascript=False):
 def pdf_from_url(document_url, javascript=False):
     print("splat|pdf_from_url")
     # Fetch URL and save to file
-    raise NotImplementedError()
+    raise NotImplementedError("Saving from URL is not yet supported.")
 
 
 def execute(cmd):
@@ -76,6 +76,11 @@ def prince_handler(input_filepath, output_filepath=None, javascript=False):
     return output_filepath
 
 
+def resposne(payload):
+    cleanup()
+    return payload
+
+
 # Entrypoint for AWS
 def lambda_handler(event, context):
     try:
@@ -92,24 +97,24 @@ def lambda_handler(event, context):
             elif body.get('document_url'):
                 output_filepath = pdf_from_url(body.get('document_url'), javascript)
             else:
-                return {
+                return response({
                     'statusCode': 400,
                     'headers': {
                         'Content-Type': 'application/json',
                     },
                     'body': json.dumps({'errors': ['Please specify either document_content or document_url']}),
                     'isBase64Encoded': False,
-                }
+                })
         except subprocess.CalledProcessError as e:
             print(f"splat|calledProcessError|{str(e)}")
-            return {
+            return response({
                 'statusCode': 500,
                 'headers': {
                     'Content-Type': 'application/json',
                 },
                 'body': json.dumps({'errors': [str(e)]}),
                 'isBase64Encoded': False,
-            }
+            })
 
         # Return PDF
         if body.get('bucket_name'):
@@ -122,29 +127,27 @@ def lambda_handler(event, context):
             bucket.upload_file('/tmp/output.pdf', key)
             location = boto3.client('s3').get_bucket_location(Bucket=bucket_name)['LocationConstraint']
             url = f'https://{bucket_name}.s3-{location}.amazonaws.com/{key}'
-            delete_file(output_filepath)
 
-            return {
+            return response({
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
                 },
                 'body': json.dumps({'url': url}),
                 'isBase64Encoded': False,
-            }
+            })
         elif body.get('presigned_url'):
             print('splat|presigned_url_save')
             presigned_url = body.get('presigned_url')
             if not urlparse(presigned_url['url']).netloc.endswith('amazonaws.com'):
-                delete_file(output_filepath)
-                return {
+                return response({
                     'statusCode': 400,
                     'headers': {
                         'Content-Type': 'application/json',
                     },
                     'body': json.dumps({'errors': ['Invalid presigned URL']}),
                     'isBase64Encoded': False,
-                }
+                })
             with open(output_filepath, 'rb') as f:
                 # 5xx responses are normal for s3, recommendation is to try 10 times
                 # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
@@ -164,33 +167,30 @@ def lambda_handler(event, context):
                     else:
                         break
                 else:
-                    delete_file(output_filepath)
                     print('splat|s3_max_retry_reached')
-                    return {
+                    return response({
                         'statusCode': response.status_code,
                         'headers': response.headers,
                         'body': response.content,
                         'isBase64Encoded': False,
-                    }
+                    })
             if response.status_code != 204:
                 print(f'splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}')
-                delete_file(output_filepath)
-                return {
+                return response({
                     'statusCode': response.status_code,
                     'headers': response.headers,
                     'body': response.content,
                     'isBase64Encoded': False,
-                }
+                })
             else:
-                delete_file(output_filepath)
-                return {
+                return response({
                     'statusCode': 201,
                     'headers': {
                         'Content-Type': 'application/json',
                     },
                     'body': '',
                     'isBase64Encoded': False,
-                }
+                })
 
         else:
             print('splat|stream_binary_response')
@@ -200,56 +200,51 @@ def lambda_handler(event, context):
             b64_encoded_pdf = base64.b64encode(binary_data).decode('utf-8')
             # Check size. lambda has a 6mb limit. Check if > 5.5mb
             if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
-                delete_file(output_filepath)
-                return {
+                return response({
                     'statusCode': 500,
                     'headers': {
                         'Content-Type': 'application/json',
                     },
                     'body': json.dumps({'errors': ['The resulting PDF is too large to stream back from lambda. Please use "presigned_url" to upload it to s3 instead.']}),
                     'isBase64Encoded': False,
-                }
-            delete_file(output_filepath)
-            return {
+                })
+            return response({
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/pdf',
                 },
                 'body': b64_encoded_pdf,
                 'isBase64Encoded': True,
-            }
+            })
 
     except NotImplementedError:
         print('splat|not_implemented_error')
-        delete_file(output_filepath)
-        return {
+        return response({
             'statusCode': 501,
             'headers': {
                 'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': ['The requested feature is not implemented, yet.']}),
             'isBase64Encoded': False,
-        }
+        })
 
     except json.JSONDecodeError as e:
-        delete_file(output_filepath)
-        return {
+        return response({
             'statusCode': 400,
             'headers': {
                 'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': [f'Failed to decode request body as JSON: {str(e)}']}),
             'isBase64Encoded': False,
-        }
+        })
 
     except Exception as e:
         print(f'splat|unknown_error|{str(e)}')
-        delete_file(output_filepath)
-        return {
+        return response({
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
             },
             'body': json.dumps({'errors': [f'An unknown error occured: {str(e)}']}),
             'isBase64Encoded': False,
-        }
+        })
