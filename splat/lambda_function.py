@@ -76,7 +76,7 @@ def prince_handler(input_filepath, output_filepath=None, javascript=False):
     return output_filepath
 
 
-def response(payload):
+def respond(payload):
     cleanup()
     return payload
 
@@ -97,7 +97,7 @@ def lambda_handler(event, context):
             elif body.get('document_url'):
                 output_filepath = pdf_from_url(body.get('document_url'), javascript)
             else:
-                return response({
+                return respond({
                     'statusCode': 400,
                     'headers': {
                         'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ def lambda_handler(event, context):
                 })
         except subprocess.CalledProcessError as e:
             print(f"splat|calledProcessError|{str(e)}")
-            return response({
+            return respond({
                 'statusCode': 500,
                 'headers': {
                     'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ def lambda_handler(event, context):
             location = boto3.client('s3').get_bucket_location(Bucket=bucket_name)['LocationConstraint']
             url = f'https://{bucket_name}.s3-{location}.amazonaws.com/{key}'
 
-            return response({
+            return respond({
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ def lambda_handler(event, context):
             print('splat|presigned_url_save')
             presigned_url = body.get('presigned_url')
             if not urlparse(presigned_url['url']).netloc.endswith('amazonaws.com'):
-                return response({
+                return respond({
                     'statusCode': 400,
                     'headers': {
                         'Content-Type': 'application/json',
@@ -168,7 +168,7 @@ def lambda_handler(event, context):
                         break
                 else:
                     print('splat|s3_max_retry_reached')
-                    return response({
+                    return respond({
                         'statusCode': response.status_code,
                         'headers': response.headers,
                         'body': response.content,
@@ -176,14 +176,14 @@ def lambda_handler(event, context):
                     })
             if response.status_code != 204:
                 print(f'splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}')
-                return response({
+                return respond({
                     'statusCode': response.status_code,
                     'headers': response.headers,
                     'body': response.content,
                     'isBase64Encoded': False,
                 })
             else:
-                return response({
+                return respond({
                     'statusCode': 201,
                     'headers': {
                         'Content-Type': 'application/json',
@@ -200,7 +200,7 @@ def lambda_handler(event, context):
             b64_encoded_pdf = base64.b64encode(binary_data).decode('utf-8')
             # Check size. lambda has a 6mb limit. Check if > 5.5mb
             if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
-                return response({
+                return respond({
                     'statusCode': 500,
                     'headers': {
                         'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ def lambda_handler(event, context):
                     'body': json.dumps({'errors': ['The resulting PDF is too large to stream back from lambda. Please use "presigned_url" to upload it to s3 instead.']}),
                     'isBase64Encoded': False,
                 })
-            return response({
+            return respond({
                 'statusCode': 200,
                 'headers': {
                     'Content-Type': 'application/pdf',
@@ -219,7 +219,7 @@ def lambda_handler(event, context):
 
     except NotImplementedError:
         print('splat|not_implemented_error')
-        return response({
+        return respond({
             'statusCode': 501,
             'headers': {
                 'Content-Type': 'application/json',
@@ -229,7 +229,7 @@ def lambda_handler(event, context):
         })
 
     except json.JSONDecodeError as e:
-        return response({
+        return respond({
             'statusCode': 400,
             'headers': {
                 'Content-Type': 'application/json',
@@ -240,7 +240,7 @@ def lambda_handler(event, context):
 
     except Exception as e:
         print(f'splat|unknown_error|{str(e)}')
-        return response({
+        return respond({
             'statusCode': 500,
             'headers': {
                 'Content-Type': 'application/json',
