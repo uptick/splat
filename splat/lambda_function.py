@@ -1,4 +1,5 @@
 import base64
+import glob
 import json
 import os
 import subprocess
@@ -10,7 +11,6 @@ from uuid import uuid4
 import boto3
 import requests
 
-
 S3_RETRY_COUNT = 10
 
 
@@ -21,12 +21,15 @@ def init():
 
 
 def cleanup():
-    command = ['rm', '/tmp/*.html', '/tmp/*.pdf']
-    try:
-        for line in execute(command):
-            print("splat|cleanup|", line, end="")
-    except subprocess.CalledProcessError:
-        pass
+    print('splat|cleanup')
+    extensions_to_remove = ['html', 'pdf']
+    for extension in extensions_to_remove:
+        for path in glob.glob(f'/tmp/*.{extension}'):
+            try:
+                os.remove(path)
+                print(f'splat|cleanup|removed|{path}')
+            except FileNotFoundError:
+                print(f'splat|cleanup|failed_to_remove|{path}')
 
 
 def pdf_from_string(document_content, javascript=False):
@@ -45,16 +48,6 @@ def pdf_from_url(document_url, javascript=False):
 
 def execute(cmd):
     popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    for line in chain(iter(popen.stdout.readline, ""), iter(popen.stderr.readline, "")):
-        yield line
-    popen.stdout.close()
-    return_code = popen.wait()
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, cmd)
-
-
-def execute_shell(cmd):
-    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
     for line in chain(iter(popen.stdout.readline, ""), iter(popen.stderr.readline, "")):
         yield line
     popen.stdout.close()
@@ -91,26 +84,10 @@ def respond(payload):
     return payload
 
 
-def debug_no_space():
-    commands = [
-        'ls -alhS',
-        'du -sh *',
-        'ls -alhS /tmp',
-        'du -sh /tmp/*',
-    ]
-    for command in commands:
-        try:
-            for line in execute_shell(command):
-                print(f"splat|debug|{command}|", line, end="")
-        except subprocess.CalledProcessError:
-            pass
-
-
 # Entrypoint for AWS
 def lambda_handler(event, context):
     try:
         print("splat|begin")
-        debug_no_space()
         init()
         # Parse payload - assumes json
         body = json.loads(event.get('body'))
