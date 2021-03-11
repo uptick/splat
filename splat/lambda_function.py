@@ -76,7 +76,7 @@ def prince_handler(input_filepath, output_filepath=None, javascript=False):
     return output_filepath
 
 
-def resposne(payload):
+def response(payload):
     cleanup()
     return payload
 
