@@ -53,6 +53,16 @@ def execute(cmd):
         raise subprocess.CalledProcessError(return_code, cmd)
 
 
+def execute_shell(cmd):
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, shell=True)
+    for line in chain(iter(popen.stdout.readline, ""), iter(popen.stderr.readline, "")):
+        yield line
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
+
+
 def prince_handler(input_filepath, output_filepath=None, javascript=False):
     if not output_filepath:
         output_filepath = f'/tmp/{uuid4()}.pdf'
@@ -81,10 +91,26 @@ def respond(payload):
     return payload
 
 
+def debug_no_space():
+    commands = [
+        'ls -alhS',
+        'du -sh *',
+        'ls -alhS /tmp',
+        'du -sh /tmp/*',
+    ]
+    for command in commands:
+        try:
+            for line in execute_shell(command):
+                print(f"splat|debug|{command}|", line, end="")
+        except subprocess.CalledProcessError:
+            pass
+
+
 # Entrypoint for AWS
 def lambda_handler(event, context):
     try:
         print("splat|begin")
+        debug_no_space()
         init()
         # Parse payload - assumes json
         body = json.loads(event.get('body'))
