@@ -18,6 +18,7 @@ def init():
     # If there's any files in the font directory, export FONTCONFIG_PATH
     if any(f for f in os.listdir('fonts') if f != 'fonts.conf'):
         os.environ['FONTCONFIG_PATH'] = '/var/task/fonts'
+    cleanup()
 
 
 def cleanup():
