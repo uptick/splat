@@ -6,7 +6,7 @@ from time import sleep
 import boto3
 from invoke import run, task
 
-PRINCE_FILENAME = 'prince-13.3-linux-generic-x86_64'
+PRINCE_FILENAME = 'prince-14.1-linux-generic-x86_64'
 ZIP_FILENAME = 'splat.zip'
 FUNCTION_NAME = 'splat'
 LAYER_FILENAME = 'requests_layer.zip'

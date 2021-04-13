@@ -48,13 +48,9 @@ def pdf_from_url(document_url, javascript=False):
 
 
 def execute(cmd):
-    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    for line in chain(iter(popen.stdout.readline, ""), iter(popen.stderr.readline, "")):
-        yield line
-    popen.stdout.close()
-    return_code = popen.wait()
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, cmd)
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        raise subprocess.CalledProcessError(result.returncode, cmd)
 
 
 def prince_handler(input_filepath, output_filepath=None, javascript=False):
@@ -74,8 +70,7 @@ def prince_handler(input_filepath, output_filepath=None, javascript=False):
         command.append('--javascript')
     # Run command and capture output
     print(f"splat|invoke_prince {' '.join(command)}")
-    for line in execute(command):
-        print("splat|prince_output|", line, end="")
+    execute(command)
     # Log prince output
     return output_filepath
 
