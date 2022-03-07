@@ -43,8 +43,20 @@ def pdf_from_string(document_content, javascript=False):
 
 def pdf_from_url(document_url, javascript=False):
     print("splat|pdf_from_url")
-    # Fetch URL and save to file
-    raise NotImplementedError("Saving from URL is not yet supported.")
+    # Fetch document_url and save to file
+    response = requests.get(document_url)
+    if response.status_code != 200:
+        return respond({
+            'statusCode': 500,
+            'headers': {
+                'Content-Type': 'application/json',
+            },
+            'body': json.dumps({'errors': ['Document was unable to be fetched from document_url provided. Server response: {response.content}']}),
+            'isBase64Encoded': False,
+        })
+    with open('/tmp/input.html', 'w') as f:
+        f.write(response.content.decode('utf-8'))
+    return prince_handler('/tmp/input.html', javascript=javascript)
 
 
 def execute(cmd):
