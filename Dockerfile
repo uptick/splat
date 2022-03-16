@@ -9,5 +9,7 @@ RUN yum clean all \
     && rm prince-14.2-aws-lambda.zip
 COPY requirements.txt ./
 RUN pip3 install -r requirements.txt
+ADD splat splat/
 ENTRYPOINT [""]
+CMD ["/bin/bash"]
 CMD ["run_sql.main"]
