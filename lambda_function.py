@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from itertools import chain
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -107,6 +108,9 @@ def lambda_handler(event, context):
         init()
         # Parse payload - assumes json
         body = json.loads(event.get("body"))
+        # Check licence if user is requesting that
+        if body.get("check_license", False):
+            return check_license()
         javascript = bool(body.get("javascript", False))
         print(f"splat|javascript={javascript}")
         # Create PDF
@@ -315,8 +319,23 @@ def lambda_handler(event, context):
         )
 
 
+def check_license():
+    tree = ET.parse('/home/stickybits/work/splat/license.dat')
+    parsed_license = {child.tag: (child.attrib, child.text) for child in root if child.tag != 'signature'}
+    is_demo_license = bool(list(filter(lambda x: x[0] == 'option' and x[1].get('id') == 'demo', parsed_license)))
+    
+    return respond({
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json",
+        },
+        "body": json.dumps({**parsed_license, 'is_demo_license': is_demo_license}),
+        "isBase64Encoded": False,
+    })
+
+
 if __name__ == "__main__":
     import json
     import sys
 
-    lambda_handler({"body": json.dumps({"document_content": "hello world"})}, None)
+    print(lambda_handler({"body": json.dumps({"document_content": "hello world"})}, None))

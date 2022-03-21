@@ -7,9 +7,14 @@ RUN yum clean all \
     && unzip prince-14.2-aws-lambda.zip \
     && rm -rf /var/cache/yum \
     && rm prince-14.2-aws-lambda.zip
-COPY requirements.txt ./
+# Copy requirements, and optionally the fonts.zip if it exists.
+COPY requirements.txt fonts.zip* ./
 RUN pip3 install -r requirements.txt
-ADD splat splat/
+# Fonts zip may not exist, so || true it.
+RUN unzip -o fonts.zip || true
+RUN rm -f fonts.zip*
+COPY license.dat ./prince-engine/license/license.dat
+COPY lambda_function.py ./
 ENTRYPOINT [""]
 CMD ["/bin/bash"]
 CMD ["run_sql.main"]
