@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import traceback
 import xml.etree.ElementTree as ET
 from itertools import chain
 from urllib.parse import urlparse
@@ -306,7 +307,8 @@ def lambda_handler(event, context):
         )
 
     except Exception as e:
-        print(f"splat|unknown_error|{str(e)}")
+        print(f"splat|unknown_error|{str(e)}|stacktrace:")
+        traceback.print_exc()
         return respond(
             {
                 "statusCode": 500,
@@ -320,8 +322,8 @@ def lambda_handler(event, context):
 
 
 def check_license():
-    tree = ET.parse('/home/stickybits/work/splat/license.dat')
-    parsed_license = {child.tag: (child.attrib, child.text) for child in root if child.tag != 'signature'}
+    tree = ET.parse('./prince-engine/license/license.dat')
+    parsed_license = {child.tag: (child.attrib, child.text) for child in tree.getroot() if child.tag != 'signature'}
     is_demo_license = bool(list(filter(lambda x: x[0] == 'option' and x[1].get('id') == 'demo', parsed_license)))
     
     return respond({
@@ -338,4 +340,4 @@ if __name__ == "__main__":
     import json
     import sys
 
-    print(lambda_handler({"body": json.dumps({"document_content": "hello world"})}, None))
+    print(lambda_handler({"body": json.dumps({"check_license": True})}, None))

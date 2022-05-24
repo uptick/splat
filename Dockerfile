@@ -15,6 +15,4 @@ RUN unzip -o fonts.zip || true
 RUN rm -f fonts.zip*
 COPY license.dat ./prince-engine/license/license.dat
 COPY lambda_function.py ./
-ENTRYPOINT [""]
-CMD ["/bin/bash"]
-CMD ["run_sql.main"]
+CMD ["lambda_function.lambda_handler"]
