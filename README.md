@@ -8,7 +8,7 @@ Simply build the docker image, deploy it to AWS, then invoke the lambda with an 
 
 ## Ways of invoking splat
 ### Input
-Pass content in event: `{"doucment_content": "<h1>Hello, World!</h1>"}`
+Pass content in event: `{"document_content": "<h1>Hello, World!</h1>"}`
 Pass content via URL: `{"doucment_url": "<h1>Hello, World!</h1>"}`
 
 ### Output
