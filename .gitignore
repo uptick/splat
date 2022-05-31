@@ -7,6 +7,8 @@ prince*
 # Resulting zip files
 splat.zip
 requests_layer.zip
+# Optional zip file containing fonts to be available to prince
+fonts.zip
 # Generated PDFs from tests can be ignored
 *.pdf
 # Prince licence file
