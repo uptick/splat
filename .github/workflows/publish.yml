@@ -1,0 +1,23 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+permissions:
+  id-token: write # Required for federated aws oidc
+  contents: read
+  actions: read
+  pull-requests: write
+
+jobs:
+  publish:
+    name: Publish
+    uses: uptick/actions/.github/workflows/ci.yaml@main
+    secrets: inherit
+    with:
+      slack-channel: "devops"
+      slack-on-error: false
+      praise-on-fix: false
+      poetry: true
+      command: poetry build
+      pypi-publish: true
