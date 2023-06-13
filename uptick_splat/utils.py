@@ -34,7 +34,7 @@ def pdf_with_splat(
 
     is_streaming = not bool(s3_filepath)
 
-    session = config.get_session()
+    session = config.get_session_fn()
     lambda_client = session.client(
         "lambda", region_name=config.function_region, config=Config(read_timeout=120)
     )
@@ -62,7 +62,7 @@ def pdf_with_splat(
         Body=body_html,
         Bucket=bucket_name,
         Key=html_key,
-        Tagging="ExpireAfter=1w",
+        Tagging=config.default_tagging,
     )
 
     document_url = s3_client.generate_presigned_url(
@@ -81,7 +81,7 @@ def pdf_with_splat(
     )
 
     # Remove the temporary html file from s3
-    config.delete_key(bucket_name, html_key)
+    config.delete_key_fn(bucket_name, html_key)
 
     # Check response of the invocation. Note that a successful invocation doesn't mean the PDF was generated.
     if response.get("StatusCode") != 200:
@@ -105,7 +105,7 @@ def pdf_with_splat(
             obj = s3_client.get_object(Bucket=bucket_name, Key=destination_path)
             pdf_bytes = obj["Body"].read()
             try:
-                config.delete_key(bucket_name, destination_path)
+                config.delete_key_fn(bucket_name, destination_path)
             except Exception as e:
                 pass
             return cast(bytes, pdf_bytes)

@@ -22,15 +22,43 @@ def delete_key(bucket_name: str, path: str) -> None:
         logger.warning(f"Failed to delete {path} from s3: {e}")
 
 
+def configure_splat(
+    function_region: str = "ap-southeast-2",
+    function_name: str = "splat-prod",
+    default_bucket_name: str = "",
+    default_tagging: str = "ExpireAfter=1w",
+    get_session_fn: Callable[[], Any] = get_session,
+    delete_key_fn: Callable[[str, str], None] = delete_key,
+):
+    """Configure the splat function.
+
+    :param function_region: the default region for the splat function
+    :param function_name: the name of the splat function
+    :param default_bucket_name: the default bucket name to store html uploaded to s3
+    :param default_tagging: the default tag to apply to html uploaded to s3
+    :param get_session_fn: a function that returns a boto3 session
+    :param default_key_delete_fn: a function that deletes a key from s3
+    """
+    global config
+    config = Config(
+        function_region=function_region,
+        function_name=function_name,
+        default_bucket_name=default_bucket_name,
+        default_tagging=default_tagging,
+        get_session_fn=get_session_fn,
+        delete_key_fn=delete_key_fn,
+    )
+
+
 @dataclass
 class Config:
-    function_region: str = "ap-southeast-2"
-    function_name: str = "splat-prod"
-    default_bucket_name: str = ""
-    default_html_key: str = "ExpireAfter=1w"
+    function_region: str
+    function_name: str
+    default_bucket_name: str
+    default_tagging: str
 
-    get_session: Callable[[], Any] = get_session
-    delete_key: Callable[[str, str], None] = delete_key
+    get_session_fn: Callable[[], Any]
+    delete_key_fn: Callable[[str, str], None]
 
 
-config = Config()
+configure_splat()
