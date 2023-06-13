@@ -322,18 +322,30 @@ def lambda_handler(event, context):
 
 
 def check_license():
-    tree = ET.parse('./prince-engine/license/license.dat')
-    parsed_license = {child.tag: (child.attrib, child.text) for child in tree.getroot() if child.tag != 'signature'}
-    is_demo_license = bool(list(filter(lambda x: x[0] == 'option' and x[1].get('id') == 'demo', parsed_license)))
-    
-    return respond({
-        "statusCode": 200,
-        "headers": {
-            "Content-Type": "application/json",
-        },
-        "body": json.dumps({**parsed_license, 'is_demo_license': is_demo_license}),
-        "isBase64Encoded": False,
-    })
+    tree = ET.parse("./prince-engine/license/license.dat")
+    parsed_license = {
+        child.tag: (child.attrib, child.text)
+        for child in tree.getroot()
+        if child.tag != "signature"
+    }
+    is_demo_license = bool(
+        list(
+            filter(
+                lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license
+            )
+        )
+    )
+
+    return respond(
+        {
+            "statusCode": 200,
+            "headers": {
+                "Content-Type": "application/json",
+            },
+            "body": json.dumps({**parsed_license, "is_demo_license": is_demo_license}),
+            "isBase64Encoded": False,
+        }
+    )
 
 
 if __name__ == "__main__":

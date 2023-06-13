@@ -1,0 +1,2 @@
+class SplatPDFGenerationFailure(Exception):
+    pass

@@ -1,13 +1,15 @@
 [tool.poetry]
 name = "uptick-splat"
 version = "0.1.0"
-description = "Splat library"
+description = "Django library for invoking splat"
 authors = ["william chu <william.chu@uptickhq.com>"]
 readme = "README.md"
-packages = [{include = "uptick_splat"}]
+packages = [{ include = "uptick_splat" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
+django = ">=3.1, <5.0.0"
+boto3 = "*"
 
 
 [build-system]
