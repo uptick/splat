@@ -8,8 +8,8 @@ RUN yum clean all \
     && rm -rf /var/cache/yum \
     && rm prince-14.2-aws-lambda.zip
 # Copy requirements, and optionally the fonts.zip if it exists.
-COPY requirements.txt fonts.zip* ./
-RUN pip3 install -r requirements.txt
+COPY lambda_requirements.txt fonts.zip* ./
+RUN pip3 install -r lambda_requirements.txt
 # Fonts zip may not exist, so || true it.
 RUN unzip -o fonts.zip || true
 RUN rm -f fonts.zip*
