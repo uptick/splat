@@ -13,7 +13,8 @@ jobs:
   publish:
     name: Publish
     uses: uptick/actions/.github/workflows/ci.yaml@main
-    secrets: inherit
+    secrets:
+      SLACK_TOKEN: ""
     with:
       slack-channel: "devops"
       slack-on-error: false
