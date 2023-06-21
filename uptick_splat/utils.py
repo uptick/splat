@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import re
@@ -18,14 +19,23 @@ def strip_dangerous_s3_chars(filename: str) -> str:
     return re.sub(r"[^0-9a-zA-Z_\.\-\s]", "", filename)
 
 
-def pdf_with_splat(
+def pdf_from_html(
     body_html: str,
     *,
     bucket_name: Optional[str] = None,
     s3_filepath: Optional[str] = None,
+    javascript: bool = False,
     fields: Optional[Dict] = None,
     conditions: Optional[List[List]] = None,
 ) -> Optional[bytes]:
+    """Generates a pdf from html using the splat lambda function.
+
+    :param body_html: the html to convert to pdf
+    :param bucket_name: the bucket to upload the html to. defaults to config.default_bucket_name
+    :param s3_filepath: the path to upload the pdf to. defaults to a random path in the bucket
+    :param fields: additional fields to add to the presigned url
+    :param conditions: additional conditions to add to the presigned url
+    """
     bucket_name = bucket_name or config.default_bucket_name
     if not bucket_name:
         raise SplatPDFGenerationFailure(
@@ -74,7 +84,11 @@ def pdf_with_splat(
     )
 
     splat_body = json.dumps(
-        {"document_url": document_url, "presigned_url": presigned_url}
+        {
+            "document_url": document_url,
+            "presigned_url": presigned_url,
+            "javascript": javascript,
+        }
     )
 
     response = lambda_client.invoke(
@@ -113,6 +127,62 @@ def pdf_with_splat(
             return cast(bytes, pdf_bytes)
         return None
 
+    # ==== Failure ====
+    # Lambda timeout et al.
+    elif error_message := splat_response.get("errorMessage"):
+        raise SplatPDFGenerationFailure(
+            f"Error returned from lambda invocation: {error_message}"
+        )
+    # All other errors
+    else:
+        # Try to extract an error message from splat response
+        try:
+            splat_error = json.loads(splat_response["body"])["errors"][0]
+        except (KeyError, JSONDecodeError):
+            splat_error = splat_response
+        raise SplatPDFGenerationFailure(f"Error returned from splat: {splat_error}")
+
+
+def pdf_from_html_without_s3(
+    body_html: str,
+    javascript: bool = False,
+) -> Optional[bytes]:
+    """Generates a pdf from html without using s3. This is useful for small pdfs and html documents.
+
+    The maximum size of the html document is 6MB. The maximum size of the pdf is 6MB.
+    """
+    session = config.get_session_fn()
+    lambda_client = session.client(
+        "lambda",
+        region_name=config.function_region,
+        config=Config(read_timeout=60 * 15, retries={"max_attempts": 0}),
+    )
+
+    splat_body = json.dumps({"document_content": body_html, "javascript": javascript})
+
+    response = lambda_client.invoke(
+        FunctionName=config.function_name,
+        Payload=json.dumps({"body": splat_body}),
+    )
+
+    # Check response of the invocation. Note that a successful invocation doesn't mean the PDF was generated.
+    if response.get("StatusCode") != 200:
+        raise SplatPDFGenerationFailure(
+            "Invalid response while invoking splat lambda -"
+            f" {response.get('StatusCode')}"
+        )
+
+    # Parse lambda response
+    try:
+        splat_response = json.loads(response["Payload"].read().decode("utf-8"))
+    except (KeyError, AttributeError):
+        raise SplatPDFGenerationFailure("Invalid lambda response format")
+    except JSONDecodeError:
+        raise SplatPDFGenerationFailure("Error decoding splat response body as json")
+
+    # ==== Success ====
+    if splat_response.get("statusCode") == 200:
+        return base64.b64decode(splat_response.get("body"))
     # ==== Failure ====
     # Lambda timeout et al.
     elif error_message := splat_response.get("errorMessage"):

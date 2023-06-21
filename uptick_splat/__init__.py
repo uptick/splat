@@ -1,10 +1,11 @@
-from .config import config, configure  # noqa
-from .utils import SplatPDFGenerationFailure, pdf_with_splat  # noqa
+from .config import config, configure_splat
+from .utils import SplatPDFGenerationFailure, pdf_from_html, pdf_from_html_without_s3
 
 __all__ = [
     "config",
-    "configure",
+    "configure_splat",
     "SplatPDFGenerationFailure",
-    "pdf_with_splat",
+    "pdf_from_html",
+    "pdf_from_html_without_s3",
     "__version__",
 ]
