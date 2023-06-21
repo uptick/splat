@@ -146,7 +146,7 @@ def pdf_from_html(
 def pdf_from_html_without_s3(
     body_html: str,
     javascript: bool = False,
-) -> Optional[bytes]:
+) -> bytes:
     """Generates a pdf from html without using s3. This is useful for small pdfs and html documents.
 
     The maximum size of the html document is 6MB. The maximum size of the pdf is 6MB.
