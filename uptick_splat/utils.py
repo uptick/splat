@@ -36,7 +36,9 @@ def pdf_with_splat(
 
     session = config.get_session_fn()
     lambda_client = session.client(
-        "lambda", region_name=config.function_region, config=Config(read_timeout=120)
+        "lambda",
+        region_name=config.function_region,
+        config=Config(read_timeout=60 * 15, retries={"max_attempts": 0}),
     )
     s3_client = session.client("s3")
 
