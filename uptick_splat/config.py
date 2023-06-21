@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Optional
+from uuid import uuid4
 
 import boto3
 
@@ -12,9 +13,15 @@ def get_session() -> Any:
     return session
 
 
+def get_tmp_html_key() -> str:
+    """This function can be overridden to provide a custom storage_location for temporary html files"""
+    return f"tmp/{uuid4()}.html"
+
+
 def delete_key(bucket_name: str, path: str) -> None:
     """This function can be overriden to provide a custom delete key function"""
-    session = config.get_session()
+    global config
+    session = config.get_session_fn()
     s3_client = session.client("s3")
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=path)
@@ -23,12 +30,13 @@ def delete_key(bucket_name: str, path: str) -> None:
 
 
 def configure_splat(
-    function_region: str = "ap-southeast-2",
-    function_name: str = "splat-prod",
-    default_bucket_name: str = "",
-    default_tagging: str = "ExpireAfter=1w",
-    get_session_fn: Callable[[], Any] = get_session,
-    delete_key_fn: Callable[[str, str], None] = delete_key,
+    function_region: Optional[str] = None,
+    function_name: Optional[str] = None,
+    default_bucket_name: Optional[str] = None,
+    default_tagging: Optional[str] = None,
+    get_session_fn: Optional[Callable[[], Any]] = None,
+    get_tmp_html_key_fn: Optional[Callable[[str], str]] = None,
+    delete_key_fn: Optional[Callable[[str, str], None]] = None,
 ):
     """Configure the splat function.
 
@@ -40,14 +48,20 @@ def configure_splat(
     :param default_key_delete_fn: a function that deletes a key from s3
     """
     global config
-    config = Config(
-        function_region=function_region,
-        function_name=function_name,
-        default_bucket_name=default_bucket_name,
-        default_tagging=default_tagging,
-        get_session_fn=get_session_fn,
-        delete_key_fn=delete_key_fn,
-    )
+    if function_region is not None:
+        config.function_region = function_region
+    if function_name is not None:
+        config.function_name = function_name
+    if default_bucket_name is not None:
+        config.default_bucket_name = default_bucket_name
+    if default_tagging is not None:
+        config.default_tagging = default_tagging
+    if get_session_fn is not None:
+        config.get_session_fn = get_session_fn
+    if get_tmp_html_key_fn is not None:
+        config.get_tmp_html_key_fn = get_tmp_html_key_fn
+    if delete_key_fn is not None:
+        config.delete_key_fn = delete_key_fn
 
 
 @dataclass
@@ -58,7 +72,18 @@ class Config:
     default_tagging: str
 
     get_session_fn: Callable[[], Any]
+    get_tmp_html_key_fn: Callable[[str], str]
     delete_key_fn: Callable[[str, str], None]
 
 
 configure_splat()
+
+config = Config(
+    function_region="ap-southeast-2",
+    function_name="splat-prod",
+    default_bucket_name="",
+    default_tagging="ExpireAfter=1w",
+    get_session_fn=get_session,
+    get_tmp_html_key_fn=get_tmp_html_key,
+    delete_key_fn=delete_key,
+)

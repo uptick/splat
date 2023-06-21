@@ -68,18 +68,18 @@ def pdf_from_html(
     )
 
     # Upload body HTML to s3 and get a link to hand to splat
-    html_key = os.path.join(bucket_name, "tmp", f"{uuid4()}.html")
+    tmp_html_key = config.get_tmp_html_key_fn()
 
     s3_client.put_object(
         Body=body_html,
         Bucket=bucket_name,
-        Key=html_key,
+        Key=tmp_html_key,
         Tagging=config.default_tagging,
     )
 
     document_url = s3_client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": bucket_name, "Key": html_key},
+        Params={"Bucket": bucket_name, "Key": tmp_html_key},
         ExpiresIn=1800,
     )
 
@@ -97,7 +97,7 @@ def pdf_from_html(
     )
 
     # Remove the temporary html file from s3
-    config.delete_key_fn(bucket_name, html_key)
+    config.delete_key_fn(bucket_name, tmp_html_key)
 
     # Check response of the invocation. Note that a successful invocation doesn't mean the PDF was generated.
     if response.get("StatusCode") != 200:
