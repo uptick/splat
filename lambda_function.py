@@ -6,14 +6,22 @@ import subprocess
 import sys
 import traceback
 import xml.etree.ElementTree as ET
-from itertools import chain
 from urllib.parse import urlparse
 from uuid import uuid4
 
 import boto3
 import requests
+import sentry_sdk
+from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
 S3_RETRY_COUNT = 10
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN", ""),
+    integrations=[
+        AwsLambdaIntegration(),
+    ],
+)
 
 
 def init():

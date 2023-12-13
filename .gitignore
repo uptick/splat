@@ -16,3 +16,6 @@ fonts.zip
 license.dat
 # Layer working directory
 python/
+fonts
+fonts/*
+fonts/
