@@ -1,6 +1,7 @@
 import base64
 import glob
 import json
+import logging
 import os
 import subprocess
 import sys
@@ -13,6 +14,8 @@ import boto3
 import requests
 import sentry_sdk
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+
+logger = logging.getLogger("splat")
 
 S3_RETRY_COUNT = 10
 
@@ -198,6 +201,7 @@ def lambda_handler(event, context):
                         "isBase64Encoded": False,
                     }
                 )
+            print("output_filepath=", output_filepath)
             with open(output_filepath, "rb") as f:
                 # 5xx responses are normal for s3, recommendation is to try 10 times
                 # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
@@ -286,7 +290,7 @@ def lambda_handler(event, context):
             )
 
     except NotImplementedError:
-        print("splat|not_implemented_error")
+        logger.error("splat|not_implemented_error")
         return respond(
             {
                 "statusCode": 501,
@@ -315,8 +319,7 @@ def lambda_handler(event, context):
         )
 
     except Exception as e:
-        print(f"splat|unknown_error|{str(e)}|stacktrace:")
-        traceback.print_exc()
+        logger.error(f"splat|unknown_error|{str(e)}|stacktrace:", exc_info=True)
         return respond(
             {
                 "statusCode": 500,
