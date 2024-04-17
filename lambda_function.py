@@ -80,7 +80,7 @@ def pdf_from_url(document_url, javascript=False):
 
 
 def execute(cmd: str) -> None:
-    result = subprocess.run(cmd) # noqa
+    result = subprocess.run(cmd)  # noqa
     if result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
@@ -198,7 +198,9 @@ def lambda_handler(event, context):
                 files = {"file": (output_filepath, f)}
                 print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
                 while attempts < S3_RETRY_COUNT:
-                    response = requests.post(presigned_url["url"], data=presigned_url["fields"], files=files, timeout=60)
+                    response = requests.post(
+                        presigned_url["url"], data=presigned_url["fields"], files=files, timeout=60
+                    )
                     print(f"splat|s3_response|{response.status_code}")
                     if response.status_code in [500, 503]:
                         attempts += 1
@@ -312,7 +314,7 @@ def lambda_handler(event, context):
 
 
 def check_license():
-    tree = ET.parse("./prince-engine/license/license.dat") # noqa
+    tree = ET.parse("./prince-engine/license/license.dat")  # noqa
     parsed_license = {child.tag: (child.attrib, child.text) for child in tree.getroot() if child.tag != "signature"}
     is_demo_license = bool(list(filter(lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license)))
 

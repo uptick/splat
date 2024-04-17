@@ -26,7 +26,7 @@ def delete_key(bucket_name: str, path: str) -> None:
     s3_client = session.client("s3")
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=path)
-    except Exception as e: # noqa
+    except Exception as e:  # noqa
         logger.warning(f"Failed to delete {path} from s3: {e}")
 
 

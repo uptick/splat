@@ -118,7 +118,7 @@ def pdf_from_html(
             pdf_bytes = obj["Body"].read()
             try:
                 config.delete_key_fn(bucket_name, destination_path)
-            except Exception: # noqa
+            except Exception:  # noqa
                 pass
             return cast(bytes, pdf_bytes)
         return None
@@ -170,8 +170,6 @@ def pdf_from_html_without_s3(
         splat_response = json.loads(response["Payload"].read().decode("utf-8"))
     except (KeyError, AttributeError) as exc:
         raise SplatPDFGenerationFailure("Invalid lambda response format") from exc
-    except JSONDecodeError as exc:
-        raise SplatPDFGenerationFailure("Error decoding splat response body as json") from exc
 
     # ==== Success ====
     if splat_response.get("statusCode") == 200:

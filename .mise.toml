@@ -35,7 +35,7 @@ run = [
 [tasks.start]
 description = "Run a local server"
 run = [
-	"poetry run uvicorn tickforge.server.main:app --reload"
+  "docker compose up --watch"
 ]
 
 [tasks.build]
