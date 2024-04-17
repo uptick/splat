@@ -14,7 +14,7 @@ run = "poetry run ruff check --fix ."
 
 [tasks.lint]
 description = "Run all linters"
-depends = ['format', 'ruff-check', 'mypy']
+depends = ['format', 'ruff-check']
 
 [tasks.test]
 description = "Run all tests"

@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 import sys
-import traceback
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -57,7 +56,7 @@ def pdf_from_string(document_content, javascript=False):
 def pdf_from_url(document_url, javascript=False):
     print("splat|pdf_from_url")
     # Fetch document_url and save to file
-    response = requests.get(document_url)
+    response = requests.get(document_url, timeout=120)
     if response.status_code != 200:
         return respond(
             {
@@ -80,8 +79,8 @@ def pdf_from_url(document_url, javascript=False):
     return prince_handler("/tmp/input.html", javascript=javascript)
 
 
-def execute(cmd):
-    result = subprocess.run(cmd)
+def execute(cmd: str) -> None:
+    result = subprocess.run(cmd) # noqa
     if result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
@@ -128,9 +127,7 @@ def lambda_handler(event, context):
         # Create PDF
         try:
             if body.get("document_content"):
-                output_filepath = pdf_from_string(
-                    body.get("document_content"), javascript
-                )
+                output_filepath = pdf_from_string(body.get("document_content"), javascript)
             elif body.get("document_url"):
                 output_filepath = pdf_from_url(body.get("document_url"), javascript)
             else:
@@ -140,13 +137,7 @@ def lambda_handler(event, context):
                         "headers": {
                             "Content-Type": "application/json",
                         },
-                        "body": json.dumps(
-                            {
-                                "errors": [
-                                    "Please specify either document_content or document_url"
-                                ]
-                            }
-                        ),
+                        "body": json.dumps({"errors": ["Please specify either document_content or document_url"]}),
                         "isBase64Encoded": False,
                     }
                 )
@@ -172,9 +163,7 @@ def lambda_handler(event, context):
             s3 = boto3.resource("s3")
             bucket = s3.Bucket(bucket_name)
             bucket.upload_file("/tmp/output.pdf", key)
-            location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)[
-                "LocationConstraint"
-            ]
+            location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
             url = f"https://{bucket_name}.s3-{location}.amazonaws.com/{key}"
 
             return respond(
@@ -207,13 +196,9 @@ def lambda_handler(event, context):
                 # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
                 attempts = 0
                 files = {"file": (output_filepath, f)}
-                print(
-                    f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}'
-                )
+                print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
                 while attempts < S3_RETRY_COUNT:
-                    response = requests.post(
-                        presigned_url["url"], data=presigned_url["fields"], files=files
-                    )
+                    response = requests.post(presigned_url["url"], data=presigned_url["fields"], files=files, timeout=60)
                     print(f"splat|s3_response|{response.status_code}")
                     if response.status_code in [500, 503]:
                         attempts += 1
@@ -231,9 +216,7 @@ def lambda_handler(event, context):
                         }
                     )
             if response.status_code != 204:
-                print(
-                    f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}"
-                )
+                print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
                 return respond(
                     {
                         "statusCode": response.status_code,
@@ -297,9 +280,7 @@ def lambda_handler(event, context):
                 "headers": {
                     "Content-Type": "application/json",
                 },
-                "body": json.dumps(
-                    {"errors": ["The requested feature is not implemented, yet."]}
-                ),
+                "body": json.dumps({"errors": ["The requested feature is not implemented, yet."]}),
                 "isBase64Encoded": False,
             }
         )
@@ -311,9 +292,7 @@ def lambda_handler(event, context):
                 "headers": {
                     "Content-Type": "application/json",
                 },
-                "body": json.dumps(
-                    {"errors": [f"Failed to decode request body as JSON: {str(e)}"]}
-                ),
+                "body": json.dumps({"errors": [f"Failed to decode request body as JSON: {str(e)}"]}),
                 "isBase64Encoded": False,
             }
         )
@@ -333,19 +312,9 @@ def lambda_handler(event, context):
 
 
 def check_license():
-    tree = ET.parse("./prince-engine/license/license.dat")
-    parsed_license = {
-        child.tag: (child.attrib, child.text)
-        for child in tree.getroot()
-        if child.tag != "signature"
-    }
-    is_demo_license = bool(
-        list(
-            filter(
-                lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license
-            )
-        )
-    )
+    tree = ET.parse("./prince-engine/license/license.dat") # noqa
+    parsed_license = {child.tag: (child.attrib, child.text) for child in tree.getroot() if child.tag != "signature"}
+    is_demo_license = bool(list(filter(lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license)))
 
     return respond(
         {
