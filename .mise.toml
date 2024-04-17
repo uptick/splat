@@ -1,0 +1,43 @@
+
+[tools]
+poetry = { version = 'latest', pyproject = 'pyproject.toml' }
+python = { version= '3.11.*'}
+awscli = '*'
+
+[tasks.format]
+description = "Run all formatters"
+run = "poetry run ruff format ."
+
+[tasks.ruff-check]
+description = "Run ruff checker"
+run = "poetry run ruff check --fix ."
+
+[tasks.lint]
+description = "Run all linters"
+depends = ['format', 'ruff-check', 'mypy']
+
+[tasks.test]
+description = "Run all tests"
+run = "poetry run py.test"
+
+[tasks.ci]
+description = "Runs everything for CI"
+depends = ['lint', 'test']
+
+[tasks.install]
+description = "Sets up dev dependencies"
+run = [
+  "mise install",
+  "poetry install",
+  "pre-commit install",
+]
+
+[tasks.start]
+description = "Run a local server"
+run = [
+	"poetry run uvicorn tickforge.server.main:app --reload"
+]
+
+[tasks.build]
+description = "Build the docker image"
+run = "docker build -f Dockerfile ."
