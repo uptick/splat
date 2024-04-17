@@ -1,0 +1,36 @@
+repos:
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.3.7
+    hooks:
+    - id: ruff
+      args:
+      - --select
+      - F401
+      - --fix
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.3.7
+    hooks:
+    - id: ruff
+-   repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.3.7
+    hooks:
+    - id: ruff-format
+# -
+    # repo: local
+    # hooks:
+    # -   id: mypy
+    #     args:
+    #     - --show-error-codes
+    #     name: mypy
+    #     entry: poetry run mypy
+    #     require_serial: true
+    #     language: system
+    #     exclude: ^tests/|^migrations/|^api_client/
+    #     types:
+    #     - python
+-   repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.13.0
+    hooks:
+    -   id: commitizen
+        stages:
+        - commit-msg
