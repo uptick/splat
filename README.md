@@ -58,3 +58,16 @@ pdf_with_splat(some_html, bucket_name="test_bucket")
 # or
 pdf_with_splat(some_html)
 ```
+
+# Development
+
+Install [mise](https://mise.jdx.dev/getting-started.html) task runner.
+
+
+```
+mise run install # booststrap the project and install requirements
+
+mise run test # run tests
+
+mise run format # format
+```
