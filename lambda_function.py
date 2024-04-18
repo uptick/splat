@@ -32,10 +32,11 @@ sentry_sdk.init(
 
 class Renderers(str, enum.Enum):
     playwright = "playwright"
-    prince = "prince"
+    princexml = "princexml"
 
 
 class Payload(pydantic.BaseModel):
+    # NOTE: When updating this model, also update the equivalent documentation
     # General Parameters
     javascript: bool = False
     check_license: bool = False
@@ -48,7 +49,7 @@ class Payload(pydantic.BaseModel):
     ## Browse the document in a browser before rendering
     browser_url: str | None = None
     browser_headers: dict = pydantic.Field(default_factory=dict)
-    renderer: Renderers = Renderers.prince
+    renderer: Renderers = Renderers.princexml
 
     # Output parameters
     bucket_name: str | None = None
@@ -126,7 +127,7 @@ def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
         assert payload.document_content
         temporary_html_file.write(payload.document_content)
         temporary_html_file.flush()
-        if payload.renderer == Renderers.prince:
+        if payload.renderer == Renderers.princexml:
             prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
         else:
             playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
@@ -144,7 +145,7 @@ def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as temporary_html_file:
         temporary_html_file.write(response.content.decode("utf-8"))
         temporary_html_file.flush()
-        if payload.renderer == Renderers.prince:
+        if payload.renderer == Renderers.princexml:
             prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
         else:
             playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
@@ -155,9 +156,9 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
     print("splat|pdf_from_browser_url")
     # First we need to visit the browser with playwright and save the html
     assert payload.browser_url
-    if payload.renderer == Renderers.prince:
+    if payload.renderer == Renderers.princexml:
         html = playwright_page_to_html_string(payload.browser_url, payload.browser_headers)
-        pdf_from_document_content(Payload(document_content=html, renderer=Renderers.prince), output_filepath)
+        pdf_from_document_content(Payload(document_content=html, renderer=Renderers.princexml), output_filepath)
     else:
         playwright_page_to_pdf(payload.browser_url, payload.browser_headers, output_filepath)
 

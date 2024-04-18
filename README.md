@@ -8,22 +8,39 @@ It is intended to be a DIY docraptor of sorts.
 
 Simply build the docker image, deploy it to AWS, then invoke the lambda with an event body JSON that performs the desired operation. For example: `{"document_content": "<h1>Hello, World!</h1>"}`
 
-## Ways of invoking splat
+This can be done via a function_url, apigateway or lambda invoke.
+
+## Invoking splat
+
+Event payload body.
+
+|Field | Type| Description|
+|---|---|---|
+| **javascript (princexml)**   |  boolean (False) | Enables [princeXML's javascript execution](https://www.princexml.com/doc/javascript/). This will not render react but can be used for formatting. |
+| **check_license**  |   boolean (False) | Send this field to receive a check on remaining license usage |
+| **document_content** | string | Embed the html content in the payload. There will be AWS payload size limitations.|
+| **document_url**| url | Fetch the html content from `document_url` to disk before rendering.|
+| **browser_url** | url | Browser the `browser_url` with `playwright` before rendering with `renderer`|
+| **browser_headers**| Mapping[str,str] | Add additional headers to playwright before visiting `browser_url`|
+| **renderer**| `princexml` or `playwright`| Renderer to render the html with |
+| **bucket_name**| string | Output the resulting pdf to `s3://{bucket_name}/{uuid}.pdf`. The lambda will require permission to upload to the bucket. The response will include `bucket`, `key`, `presigned_url`|
+| **presigned_url**| url | Output the resulting pdf to the presigned url. Generate the presigned url with `put_object`. See Output for more information.|
 
 ### Input
 
 Pass content in event: `{"document_content": "<h1>Hello, World!</h1>"}`
-Pass content via URL: `{"doucment_url": "<h1>Hello, World!</h1>"}`
+
+Pass content via URL: `{"document_url": "https://some_page/report.html"}`
+
+Pass content via Browser page: `{"browser_url": "https://some_react_page/", "renderer": "princexml", "browser_headers": {"Authorization": "Bearer SOME_BEARER_TOKEN"}}`
 
 ### Output
 
 Returns PDF base64 encoded by default.
+
 To save to an s3 bucket (lambda requires permission): `{"bucket_name": "<BUCKET>"}`
+
 To save to a presigned url: `{"presigned_url": "<URL>"}`
-
-### Options
-
-To enable Javascript: `{"javascript": true}`
 
 ## PrinceXML License
 

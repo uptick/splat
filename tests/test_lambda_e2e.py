@@ -53,7 +53,7 @@ def test_check_license_returns_a_license_payload() -> None:
     assert body["is_demo_license"] is False
 
 
-@pytest.mark.parametrize("renderer", ["prince", "playwright"])
+@pytest.mark.parametrize("renderer", ["princexml", "playwright"])
 class TestRenderers:
     def test_generating_pdf_from_document_url(self, renderer: str):
         s3_client = get_s3_client()
