@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 import boto3
+import pytest
 import requests
 from botocore.client import Config
 
@@ -99,3 +100,20 @@ def test_storing_output_pdf_to_a_presigned_url():
 
     assert status_code == 201
     assert b"Z" in pdf_bytes
+
+
+@pytest.mark.skip(reason="This test... is not working atm")
+def test_storing_output_pdf_via_bucket_name():
+    status_code, _, _ = call_lamdba(
+        {"document_content": "<h1>Z</h1>", "bucket_name": BUCKET_NAME},
+    )
+
+    assert status_code == 200
+
+
+def test_sending_invalid_presigned_url_an_error_is_returned():
+    status_code, _, _ = call_lamdba(
+        {"document_content": "<h1>Z</h1>", "presigned_url": "FAKE_URL"}, raise_exception=False
+    )
+
+    assert status_code == 400

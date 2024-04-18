@@ -12,6 +12,7 @@ services:
       - './:/app'
     depends_on:
       - lambda
+    profiles: [test]
 
   lambda:
     image: splat:dev
