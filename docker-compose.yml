@@ -16,7 +16,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev
     develop:
       watch:
         - action: sync+restart

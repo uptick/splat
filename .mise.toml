@@ -1,4 +1,3 @@
-
 [tools]
 poetry = { version = 'latest', pyproject = 'pyproject.toml' }
 python = { version= '3.11.*'}
@@ -20,9 +19,14 @@ depends = ['format', 'ruff-check']
 description = "Run all tests"
 run = "docker compose run --rm -it dev pytest ."
 
+[tasks."ci:test"]
+description = "Run all tests"
+run = "docker compose run --rm  dev pytest ."
+depends = ["build"]
+
 [tasks.ci]
 description = "Runs everything for CI"
-depends = ['lint', 'test']
+depends = ['lint', 'ci:test']
 
 [tasks.install]
 description = "Sets up dev dependencies"

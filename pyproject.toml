@@ -4,7 +4,7 @@ version = "0.1.8"
 description = "Django library for invoking splat"
 authors = ["william chu <william.chu@uptickhq.com>"]
 readme = "README.md"
-packages = [{ include = "uptick_splat" }, { include = "test"}]
+packages = [{ include = "uptick_splat" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
@@ -24,29 +24,6 @@ build-backend = "poetry.core.masonry.api"
 
 # Exclude a variety of commonly ignored directories.
 line-length = 120
-
-# Enable Pyflakes `E` and `F` codes by default.
-select = [
-    "F",   # Pyflakes
-    "E",   # Pycodestyle
-    "W",   # Pycodestyle
-    "C90", # Mccabe complexity
-    "C",   # flake8-comprehensions
-    "B",   # flake8-bugbear
-    "UP",  # pyupgrade
-    "S",   # bandit (security)
-    "DTZ", # Enforce good datetime
-    "BLE", # Blind exceptions
-    "I",   # isort
-]
-
-ignore = [
-    "E501", # Line length is done by black
-    "D202", # NoBlankLineAfterFunction
-    "S101", # Use of `assert` detected
-    "S106", # Ignore secrets
-    "B008", # Do not perform function call. Lots of false positives with typer.Option
-]
 
 # Exclude a variety of commonly ignored directories.
 exclude = [
@@ -72,8 +49,33 @@ exclude = [
     "api_client",
 ]
 
-# Allow unused variables when underscore-prefixed.
-dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 # Assume Python 3.10.
 target-version = "py311"
+
+[tool.ruff.lint]
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+ignore = [
+    "E501", # Line length is done by black
+    "D202", # NoBlankLineAfterFunction
+    "S101", # Use of `assert` detected
+    "S106", # Ignore secrets
+    "B008", # Do not perform function call. Lots of false positives with typer.Option
+]
+
+# Enable Pyflakes `E` and `F` codes by default.
+select = [
+    "F",   # Pyflakes
+    "E",   # Pycodestyle
+    "W",   # Pycodestyle
+    "C90", # Mccabe complexity
+    "C",   # flake8-comprehensions
+    "B",   # flake8-bugbear
+    "UP",  # pyupgrade
+    "S",   # bandit (security)
+    "DTZ", # Enforce good datetime
+    "BLE", # Blind exceptions
+    "I",   # isort
+]
