@@ -1,5 +1,6 @@
 #	docker build --platform linux/amd64 -t ${IMAGE} --target=base .
-FROM public.ecr.aws/lambda/python:3.11-x86_64
+# Target: base
+FROM public.ecr.aws/lambda/python:3.11-x86_64 as base
 ENV PRINCE_FILENAME=prince-14.1-linux-generic-x86_64
 RUN yum clean all \
     && yum install -y unzip giflib \

@@ -4,7 +4,7 @@ version = "0.1.8"
 description = "Django library for invoking splat"
 authors = ["william chu <william.chu@uptickhq.com>"]
 readme = "README.md"
-packages = [{ include = "uptick_splat" }]
+packages = [{ include = "uptick_splat" }, { include = "test"}]
 
 [tool.poetry.dependencies]
 python = "^3.9"

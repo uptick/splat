@@ -18,7 +18,7 @@ depends = ['format', 'ruff-check']
 
 [tasks.test]
 description = "Run all tests"
-run = "poetry run py.test"
+run = "docker compose run --rm -it dev pytest ."
 
 [tasks.ci]
 description = "Runs everything for CI"
@@ -31,13 +31,14 @@ run = [
   "poetry install",
   "pre-commit install",
 ]
+depends = ["build"]
 
 [tasks.start]
 description = "Run a local server"
 run = [
-  "docker compose up --watch"
+  "docker compose up --watch "
 ]
 
 [tasks.build]
 description = "Build the docker image"
-run = "docker build -f Dockerfile ."
+run = "docker compose build"

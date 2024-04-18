@@ -1,0 +1,17 @@
+.git
+var
+node_modules
+**/.git
+**/node_modules
+**/*.pyc
+**/*.jsx
+**/*.js
+**/*.sass
+**/*.css
+**/*.scss
+**/*.snap
+**/__pycache__
+**/*.storyshot
+./abas/apps/customerportal/packages
+**/test_fixtures
+./.venv/
