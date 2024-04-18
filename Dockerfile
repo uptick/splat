@@ -9,8 +9,9 @@ RUN apt-get update && \
     g++ \
     make \
     cmake \
-    unzip \
-    libcurl4-openssl-dev
+    libcurl4-openssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Include global arg in this stage of the build
 ARG FUNCTION_DIR
@@ -43,8 +44,10 @@ RUN curl -Lo aws-lambda-rie \
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
+    libavif13 \
     unzip \
-    libgif7
+    libgif7 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Download and extract PrinceXML
 RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && \
@@ -54,6 +57,7 @@ RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && 
 
 CMD rm -rf /var/task/fonts || true
 COPY font[s] /var/task/fonts
+RUN mkdir -p /var/task/fonts || true
 COPY license.dat ./prince-engine/license/license.dat
 COPY lambda_function.py ./
 

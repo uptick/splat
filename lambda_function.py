@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 from uuid import uuid4
 
 import boto3
+import pydantic
 import requests
 import sentry_sdk
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
@@ -25,6 +26,20 @@ sentry_sdk.init(
         AwsLambdaIntegration(),
     ],
 )
+
+
+class Payload(pydantic.BaseModel):
+    # General Parameters
+    javascript: bool = False
+    check_license: bool = False
+
+    # Input parameters
+    document_content: str | None = None
+    document_url: str | None = None
+
+    # Output parameters
+    bucket_name: str | None = None
+    presigned_url: dict = pydantic.Field(default_factory=dict)
 
 
 @dataclass
@@ -124,138 +139,159 @@ def prince_handler(input_filepath: str, output_filepath: str | None = None, java
     return output_filepath
 
 
-def respond(payload: Response) -> Response:
-    cleanup()
-    return payload
-
-
 # Entrypoint for AWS
 def lambda_handler(event: dict, context: dict) -> dict:  # noqa
     try:
-        return handler(event, context).as_dict()
+        resp = handler(event, context).as_dict()
     except SplatPDFGenerationFailure as e:
-        return e.as_response().as_dict()
+        resp = e.as_response().as_dict()
     except Exception as e:
         logger.error(f"splat|unknown_error|{str(e)}|stacktrace:", exc_info=True)
-        return SplatPDFGenerationFailure(status_code=500, message=str(e)).as_response().as_dict()
+        resp = SplatPDFGenerationFailure(status_code=500, message=str(e)).as_response().as_dict()
+    cleanup()
+    return resp
 
 
-def handler(event: dict, context: dict) -> Response:  # noqa
-    """
-    TODO:
-    - [ ] Improve error handling
-    - [ ] simplify this function
-    - [ ] use temporary files
-    - [ ] Better parsing
-    - [ ] move check license code
-    """
-    # 0 Check license
-    # 1) Initialize
-    # 2) Parse payload
-    # 3) Read html
-    # 4) Generate pdf
-    # 5) Deliver pdf
-    print("splat|begin")
-    init()
-    # Parse payload - assumes json
-
-    body = json.loads(event.get("body", "{}"))
-    # Check licence if user is requesting that
-    if body.get("check_license", False):
-        return check_license()
-    javascript = bool(body.get("javascript", False))
-    print(f"splat|javascript={javascript}")
-
-    # Create PDF
-    if body.get("document_content"):
-        output_filepath = pdf_from_string(body.get("document_content"), javascript)
-    elif body.get("document_url"):
-        output_filepath = pdf_from_url(body.get("document_url"), javascript)
+def create_pdf(payload: Payload) -> str:
+    """Creates the PDF and stores it from the payload"""
+    if payload.document_content:
+        output_filepath = pdf_from_string(payload.document_content, payload.javascript)
+    elif payload.document_url:
+        output_filepath = pdf_from_url(payload.document_url, payload.javascript)
     else:
         raise SplatPDFGenerationFailure(
             "Please specify either document_content or document_url",
             status_code=400,
         )
-    # Return PDF
-    if body.get("bucket_name"):
-        print("splat|bucket_save")
-        # Upload to s3 and return URL
-        bucket_name = body.get("bucket_name")
-        key = "output.pdf"
-        s3 = boto3.resource("s3")
-        bucket = s3.Bucket(bucket_name)
-        bucket.upload_file("/tmp/output.pdf", key)  # noqa S108
-        location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
-        url = f"https://{bucket_name}.s3-{location}.amazonaws.com/{key}"
-        return Response(
-            body=json.dumps({"url": url}),
-        )
-    elif body.get("presigned_url"):
-        print("splat|presigned_url_save")
-        presigned_url = body.get("presigned_url")
-        try:
-            urlparse(presigned_url["url"])
-            assert presigned_url["fields"]
-            assert presigned_url["url"]
-        except Exception as e:  # noqa
-            raise SplatPDFGenerationFailure(
-                status_code=400,
-                message="Invalid presigned URL",
-            ) from e
-        print("output_filepath=", output_filepath)
-        with open(output_filepath, "rb") as f:
-            # 5xx responses are normal for s3, recommendation is to try 10 times
-            # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
-            attempts = 0
-            files = {"file": (output_filepath, f)}
-            print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
-            while attempts < S3_RETRY_COUNT:
-                response = requests.post(presigned_url["url"], data=presigned_url["fields"], files=files, timeout=60)
-                print(f"splat|s3_response|{response.status_code}")
-                if response.status_code in [500, 503]:
-                    attempts += 1
-                    print("splat|s3_retry")
-                else:
-                    break
+    return output_filepath
+
+
+def deliver_pdf_to_s3_bucket(body: dict, output_filepath: str) -> Response:
+    print("splat|bucket_save")
+    # Upload to s3 and return URL
+    bucket_name = body.get("bucket_name")
+    key = "output.pdf"
+    s3 = boto3.resource("s3")
+    bucket = s3.Bucket(bucket_name)
+    bucket.upload_file(output_filepath, key)  # noqa S108
+    location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
+    url = f"https://{bucket_name}.s3-{location}.amazonaws.com/{key}"
+    return Response(
+        body=json.dumps({"url": url}),
+    )
+
+
+def deliver_pdf_to_presigned_url(body: dict, output_filepath: str) -> Response:
+    print("splat|presigned_url_save")
+    presigned_url = body.get("presigned_url")
+    try:
+        urlparse(presigned_url["url"])
+        assert presigned_url["fields"]
+        assert presigned_url["url"]
+    except Exception as e:  # noqa
+        raise SplatPDFGenerationFailure(
+            status_code=400,
+            message="Invalid presigned URL",
+        ) from e
+    print("output_filepath=", output_filepath)
+    with open(output_filepath, "rb") as f:
+        # 5xx responses are normal for s3, recommendation is to try 10 times
+        # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
+        attempts = 0
+        files = {"file": (output_filepath, f)}
+        print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
+        while attempts < S3_RETRY_COUNT:
+            response = requests.post(presigned_url["url"], data=presigned_url["fields"], files=files, timeout=500)
+            print(f"splat|s3_response|{response.status_code}")
+            if response.status_code in [500, 503]:
+                attempts += 1
+                print("splat|s3_retry")
             else:
-                print("splat|s3_max_retry_reached")
-                return Response(
-                    status_code=response.status_code,
-                    headers=response.headers,
-                    body=response.content,
-                )
-        if response.status_code != 204:
-            print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
+                break
+        else:
+            print("splat|s3_max_retry_reached")
             return Response(
                 status_code=response.status_code,
                 headers=response.headers,
                 body=response.content,
             )
-
-        else:
-            return Response(
-                status_code=201,
-            )
-
-    else:
-        print("splat|stream_binary_response")
-        # Otherwise just stream the pdf data back.
-        with open(output_filepath, "rb") as f:
-            binary_data = f.read()
-        b64_encoded_pdf = base64.b64encode(binary_data).decode("utf-8")
-        # Check size. lambda has a 6mb limit. Check if > 5.5mb
-        if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
-            raise SplatPDFGenerationFailure(
-                status_code=500,
-                message="The resulting PDF is too large to stream back from lambda. Please use 'presigned_url' to upload it to s3 instead.",
-            )
+    if response.status_code != 204:
+        print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
         return Response(
-            headers={
-                "Content-Type": "application/pdf",
-            },
-            body=b64_encoded_pdf,
-            is_base64_encoded=True,
+            status_code=response.status_code,
+            headers=response.headers,
+            body=response.content,
         )
+    else:
+        return Response(
+            status_code=201,
+        )
+
+
+def deliver_pdf_via_streaming_base64(output_filepath: str) -> Response:
+    print("splat|stream_binary_response")
+    # Otherwise just stream the pdf data back.
+    with open(output_filepath, "rb") as f:
+        binary_data = f.read()
+    b64_encoded_pdf = base64.b64encode(binary_data).decode("utf-8")
+    # Check size. lambda has a 6mb limit. Check if > 5.5mb
+    if sys.getsizeof(b64_encoded_pdf) / 1024 / 1024 > 5.5:
+        raise SplatPDFGenerationFailure(
+            status_code=500,
+            message="The resulting PDF is too large to stream back from lambda. Please use 'presigned_url' to upload it to s3 instead.",
+        )
+    return Response(
+        headers={
+            "Content-Type": "application/pdf",
+        },
+        body=b64_encoded_pdf,
+        is_base64_encoded=True,
+    )
+
+
+def deliver_pdf(body: dict, output_filepath: str) -> Response:
+    if body.get("bucket_name"):
+        return deliver_pdf_to_s3_bucket(body, output_filepath)
+    elif body.get("presigned_url"):
+        return deliver_pdf_to_presigned_url(body, output_filepath)
+    else:
+        return deliver_pdf_via_streaming_base64(output_filepath)
+
+
+def handler(event: dict, context: dict) -> Response:  # noqa
+    """
+    TODO:
+    - [ ] use temporary files
+    """
+    print("splat|begin")
+
+    # 1) Initialize
+    init()
+
+    # 2) Parse payload
+    body = json.loads(event.get("body", "{}"))
+    try:
+        payload = Payload(**body)
+    except pydantic.ValidationError as e:
+        raise SplatPDFGenerationFailure(
+            status_code=400,
+            message="Invalid payload",
+        ) from e
+
+    # 3) Check licence if user is requesting that
+    if payload.check_license:
+        return check_license()
+
+    print(f"splat|javascript={payload.javascript}")
+
+    # 4) Read the html
+
+    # 5) Generate PDF
+    output_filepath = create_pdf(payload)
+
+    # 6) Deliver PDF
+    resp = deliver_pdf(body, output_filepath)
+    return resp
 
 
 def check_license() -> Response:
