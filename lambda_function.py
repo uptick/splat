@@ -8,10 +8,14 @@ import sys
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 import boto3
+import playwright
+import playwright.sync_api
 import pydantic
 import requests
 import sentry_sdk
@@ -90,7 +94,8 @@ def init() -> None:
         os.environ["FONTCONFIG_PATH"] = "/var/task/fonts"
 
 
-def playwright_page_to_pdf(browser_url: str, headers: dict, output_filepath: str) -> None:
+@contextmanager
+def _playwright_visit_page(browser_url: str, headers: dict) -> Iterator[playwright.sync_api.Page]:
     print("splat|playwright_handler|url=", browser_url)
     with sync_playwright() as p:
         browser = p.chromium.launch()
@@ -102,21 +107,18 @@ def playwright_page_to_pdf(browser_url: str, headers: dict, output_filepath: str
             wait_until="domcontentloaded",
         )
         page.emulate_media(media="print")
+        page.wait_for_load_state("domcontentloaded")
+        page.wait_for_load_state("networkidle")
+        yield page
+
+
+def playwright_page_to_pdf(browser_url: str, headers: dict, output_filepath: str) -> None:
+    with _playwright_visit_page(browser_url, headers) as page:
         page.pdf(path=output_filepath, format="A4")
 
 
 def playwright_page_to_html_string(browser_url: str, headers: dict) -> str:
-    print("splat|playwright_handler|url=", browser_url)
-    with sync_playwright() as p:
-        browser = p.chromium.launch()
-        context = browser.new_context()
-        context.set_extra_http_headers(headers)
-        page = context.new_page()
-        page.goto(
-            browser_url,
-            wait_until="domcontentloaded",
-        )
-        page.emulate_media(media="print")
+    with _playwright_visit_page(browser_url, headers) as page:
         return page.content()
 
 
