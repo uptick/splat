@@ -1,9 +1,8 @@
 import base64
 import json
-import os
 import re
 from json import JSONDecodeError
-from typing import Dict, List, Optional, cast
+from typing import cast
 from uuid import uuid4
 
 from botocore.config import Config
@@ -22,12 +21,12 @@ def strip_dangerous_s3_chars(filename: str) -> str:
 def pdf_from_html(
     body_html: str,
     *,
-    bucket_name: Optional[str] = None,
-    s3_filepath: Optional[str] = None,
+    bucket_name: str | None = None,
+    s3_filepath: str | None = None,
     javascript: bool = False,
-    fields: Optional[Dict] = None,
-    conditions: Optional[List[List]] = None,
-) -> Optional[bytes]:
+    fields: dict | None = None,
+    conditions: list[list] | None = None,
+) -> bytes | None:
     """Generates a pdf from html using the splat lambda function.
 
     :param body_html: the html to convert to pdf
@@ -38,9 +37,7 @@ def pdf_from_html(
     """
     bucket_name = bucket_name or config.default_bucket_name
     if not bucket_name:
-        raise SplatPDFGenerationFailure(
-            "Invalid configuration: no bucket name provided"
-        )
+        raise SplatPDFGenerationFailure("Invalid configuration: no bucket name provided")
 
     is_streaming = not bool(s3_filepath)
 
@@ -102,17 +99,16 @@ def pdf_from_html(
     # Check response of the invocation. Note that a successful invocation doesn't mean the PDF was generated.
     if response.get("StatusCode") != 200:
         raise SplatPDFGenerationFailure(
-            "Invalid response while invoking splat lambda -"
-            f" {response.get('StatusCode')}"
+            "Invalid response while invoking splat lambda -" f" {response.get('StatusCode')}"
         )
 
     # Parse lambda response
     try:
         splat_response = json.loads(response["Payload"].read().decode("utf-8"))
-    except (KeyError, AttributeError):
-        raise SplatPDFGenerationFailure("Invalid lambda response format")
-    except JSONDecodeError:
-        raise SplatPDFGenerationFailure("Error decoding splat response body as json")
+    except (KeyError, AttributeError) as exc:
+        raise SplatPDFGenerationFailure("Invalid lambda response format") from exc
+    except JSONDecodeError as exc:
+        raise SplatPDFGenerationFailure("Error decoding splat response body as json") from exc
 
     # ==== Success ====
     if splat_response.get("statusCode") == 201:
@@ -122,7 +118,7 @@ def pdf_from_html(
             pdf_bytes = obj["Body"].read()
             try:
                 config.delete_key_fn(bucket_name, destination_path)
-            except Exception as e:
+            except Exception:  # noqa
                 pass
             return cast(bytes, pdf_bytes)
         return None
@@ -130,9 +126,7 @@ def pdf_from_html(
     # ==== Failure ====
     # Lambda timeout et al.
     elif error_message := splat_response.get("errorMessage"):
-        raise SplatPDFGenerationFailure(
-            f"Error returned from lambda invocation: {error_message}"
-        )
+        raise SplatPDFGenerationFailure(f"Error returned from lambda invocation: {error_message}")
     # All other errors
     else:
         # Try to extract an error message from splat response
@@ -168,17 +162,14 @@ def pdf_from_html_without_s3(
     # Check response of the invocation. Note that a successful invocation doesn't mean the PDF was generated.
     if response.get("StatusCode") != 200:
         raise SplatPDFGenerationFailure(
-            "Invalid response while invoking splat lambda -"
-            f" {response.get('StatusCode')}"
+            "Invalid response while invoking splat lambda -" f" {response.get('StatusCode')}"
         )
 
     # Parse lambda response
     try:
         splat_response = json.loads(response["Payload"].read().decode("utf-8"))
-    except (KeyError, AttributeError):
-        raise SplatPDFGenerationFailure("Invalid lambda response format")
-    except JSONDecodeError:
-        raise SplatPDFGenerationFailure("Error decoding splat response body as json")
+    except (KeyError, AttributeError) as exc:
+        raise SplatPDFGenerationFailure("Invalid lambda response format") from exc
 
     # ==== Success ====
     if splat_response.get("statusCode") == 200:
@@ -186,9 +177,7 @@ def pdf_from_html_without_s3(
     # ==== Failure ====
     # Lambda timeout et al.
     elif error_message := splat_response.get("errorMessage"):
-        raise SplatPDFGenerationFailure(
-            f"Error returned from lambda invocation: {error_message}"
-        )
+        raise SplatPDFGenerationFailure(f"Error returned from lambda invocation: {error_message}")
     # All other errors
     else:
         # Try to extract an error message from splat response

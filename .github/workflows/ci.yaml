@@ -1,0 +1,35 @@
+name: Python
+on:
+  push:
+    branches:
+      - release/*
+      - develop
+      - master
+      - main
+  pull_request: {}
+
+permissions:
+  id-token: write # Required for federated aws oidc
+  contents: read
+  actions: read
+  pull-requests: write
+
+env:
+  CLUSTER_KEY: ${{secrets.CLUSTER_KEY}}
+
+jobs:
+  ci:
+    uses: uptick/actions/.github/workflows/ci.yaml@main
+    secrets: inherit
+    with:
+      python: true
+      python-version: 3.11
+      praise-on-fix: false
+      poetry: true
+      poetry-install-command: "poetry install"
+      command: |
+        curl https://mise.jdx.dev/install.sh | sh
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
+        mise settings set experimental true
+        mise run ci

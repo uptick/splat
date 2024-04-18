@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Optional
+from typing import Any
 from uuid import uuid4
 
 import boto3
@@ -25,18 +26,18 @@ def delete_key(bucket_name: str, path: str) -> None:
     s3_client = session.client("s3")
     try:
         s3_client.delete_object(Bucket=bucket_name, Key=path)
-    except Exception as e:
+    except Exception as e:  # noqa
         logger.warning(f"Failed to delete {path} from s3: {e}")
 
 
 def configure_splat(
-    function_region: Optional[str] = None,
-    function_name: Optional[str] = None,
-    default_bucket_name: Optional[str] = None,
-    default_tagging: Optional[str] = None,
-    get_session_fn: Optional[Callable[[], Any]] = None,
-    get_tmp_html_key_fn: Optional[Callable[[str], str]] = None,
-    delete_key_fn: Optional[Callable[[str, str], None]] = None,
+    function_region: str | None = None,
+    function_name: str | None = None,
+    default_bucket_name: str | None = None,
+    default_tagging: str | None = None,
+    get_session_fn: Callable[[], Any] | None = None,
+    get_tmp_html_key_fn: Callable[[str], str] | None = None,
+    delete_key_fn: Callable[[str, str], None] | None = None,
 ):
     """Configure the splat function.
 

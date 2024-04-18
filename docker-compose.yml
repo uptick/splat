@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  dev:
+    image: dev:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - './:/app'
+    depends_on:
+      - lambda
+
+  lambda:
+    image: splat:dev
+    build:
+      context: .
+      dockerfile: Dockerfile
+    develop:
+      watch:
+        - action: sync+restart
+          path: lambda_function.py
+          target: /var/task/lambda_function.py
+        - action: rebuild
+          path: lambda_requirements.txt
+    environment:
+      - AWS_ACCESS_KEY_ID=root
+      - AWS_SECRET_ACCESS_KEY=password
+      - AWS_DEFAULT_REGION=us-east-1
+      - AWS_ENDPOINT_URL=http://minio:9000
+      - AWS_USE_PATH_STYLE_ENDPOINT=true
+    volumes:
+      - './tests:/var/task/tests'
+    ports:
+      - 8080:8080
+    depends_on:
+      - minio
+
+  minio:
+    image: 'minio/minio:latest'
+    ports:
+      - '${FORWARD_MINIO_PORT:-9000}:9000'
+      - '${FORWARD_MINIO_CONSOLE_PORT:-9090}:9090'
+    environment:
+      MINIO_ROOT_USER: 'root'
+      MINIO_ROOT_PASSWORD: 'password'
+    entrypoint: sh
+    volumes:
+      - './minio:/data/minio'
+    # Buckets are just mapped to the `minio` directory. We default create a test bucket
+    command:  -c 'mkdir -p /data/minio/test && /usr/bin/minio server --console-address ":9090" /data/minio'

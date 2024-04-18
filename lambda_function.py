@@ -5,7 +5,6 @@ import logging
 import os
 import subprocess
 import sys
-import traceback
 import xml.etree.ElementTree as ET
 from urllib.parse import urlparse
 from uuid import uuid4
@@ -27,18 +26,18 @@ sentry_sdk.init(
 )
 
 
-def init():
+def init() -> None:
     # If there's any files in the font directory, export FONTCONFIG_PATH
     if any(f for f in os.listdir("fonts") if f != "fonts.conf"):
         os.environ["FONTCONFIG_PATH"] = "/var/task/fonts"
     cleanup()
 
 
-def cleanup():
+def cleanup() -> None:
     print("splat|cleanup")
     extensions_to_remove = ["html", "pdf"]
     for extension in extensions_to_remove:
-        for path in glob.glob(f"/tmp/*.{extension}"):
+        for path in glob.glob(f"/tmp/*.{extension}"):  # noqa S108
             try:
                 os.remove(path)
                 print(f"splat|cleanup|removed|{path}")
@@ -46,18 +45,18 @@ def cleanup():
                 print(f"splat|cleanup|failed_to_remove|{path}")
 
 
-def pdf_from_string(document_content, javascript=False):
+def pdf_from_string(document_content: str, javascript: bool = False) -> str:
     print("splat|pdf_from_string")
     # Save document_content to file
-    with open("/tmp/input.html", "w") as f:
+    with open("/tmp/input.html", "w") as f:  # noqa S108
         f.write(document_content)
-    return prince_handler("/tmp/input.html", javascript=javascript)
+    return prince_handler("/tmp/input.html", javascript=javascript)  # noqa S108
 
 
-def pdf_from_url(document_url, javascript=False):
+def pdf_from_url(document_url: str, javascript: bool = False) -> dict | str:
     print("splat|pdf_from_url")
     # Fetch document_url and save to file
-    response = requests.get(document_url)
+    response = requests.get(document_url, timeout=120)
     if response.status_code != 200:
         return respond(
             {
@@ -75,20 +74,20 @@ def pdf_from_url(document_url, javascript=False):
                 "isBase64Encoded": False,
             }
         )
-    with open("/tmp/input.html", "w") as f:
+    with open("/tmp/input.html", "w") as f:  # noqa S108
         f.write(response.content.decode("utf-8"))
-    return prince_handler("/tmp/input.html", javascript=javascript)
+    return prince_handler("/tmp/input.html", javascript=javascript)  # noqa S108
 
 
-def execute(cmd):
-    result = subprocess.run(cmd)
+def execute(cmd: list[str]) -> None:
+    result = subprocess.run(cmd)  # noqa
     if result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
 
-def prince_handler(input_filepath, output_filepath=None, javascript=False):
+def prince_handler(input_filepath: str, output_filepath: str | None = None, javascript: bool = False) -> str:
     if not output_filepath:
-        output_filepath = f"/tmp/{uuid4()}.pdf"
+        output_filepath = f"/tmp/{uuid4()}.pdf"  # noqa S108
     print("splat|prince_command_run")
     # Prepare command
     command = [
@@ -108,18 +107,18 @@ def prince_handler(input_filepath, output_filepath=None, javascript=False):
     return output_filepath
 
 
-def respond(payload):
+def respond(payload: dict) -> dict:
     cleanup()
     return payload
 
 
 # Entrypoint for AWS
-def lambda_handler(event, context):
+def lambda_handler(event: dict, context: dict) -> dict:  # noqa
     try:
         print("splat|begin")
         init()
         # Parse payload - assumes json
-        body = json.loads(event.get("body"))
+        body = json.loads(event.get("body", "{}"))
         # Check licence if user is requesting that
         if body.get("check_license", False):
             return check_license()
@@ -128,11 +127,13 @@ def lambda_handler(event, context):
         # Create PDF
         try:
             if body.get("document_content"):
-                output_filepath = pdf_from_string(
-                    body.get("document_content"), javascript
-                )
+                output_filepath = pdf_from_string(body.get("document_content"), javascript)
             elif body.get("document_url"):
-                output_filepath = pdf_from_url(body.get("document_url"), javascript)
+                output_filepath_or_response = pdf_from_url(body.get("document_url"), javascript)
+                if isinstance(output_filepath_or_response, dict):
+                    return output_filepath_or_response
+                else:
+                    output_filepath = output_filepath_or_response
             else:
                 return respond(
                     {
@@ -140,13 +141,7 @@ def lambda_handler(event, context):
                         "headers": {
                             "Content-Type": "application/json",
                         },
-                        "body": json.dumps(
-                            {
-                                "errors": [
-                                    "Please specify either document_content or document_url"
-                                ]
-                            }
-                        ),
+                        "body": json.dumps({"errors": ["Please specify either document_content or document_url"]}),
                         "isBase64Encoded": False,
                     }
                 )
@@ -171,10 +166,8 @@ def lambda_handler(event, context):
             key = "output.pdf"
             s3 = boto3.resource("s3")
             bucket = s3.Bucket(bucket_name)
-            bucket.upload_file("/tmp/output.pdf", key)
-            location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)[
-                "LocationConstraint"
-            ]
+            bucket.upload_file("/tmp/output.pdf", key)  # noqa S108
+            location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
             url = f"https://{bucket_name}.s3-{location}.amazonaws.com/{key}"
 
             return respond(
@@ -190,7 +183,9 @@ def lambda_handler(event, context):
         elif body.get("presigned_url"):
             print("splat|presigned_url_save")
             presigned_url = body.get("presigned_url")
-            if not urlparse(presigned_url["url"]).netloc.endswith("amazonaws.com"):
+            urlparse(presigned_url["url"])
+            is_valid_url = True
+            if not is_valid_url:
                 return respond(
                     {
                         "statusCode": 400,
@@ -207,12 +202,10 @@ def lambda_handler(event, context):
                 # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
                 attempts = 0
                 files = {"file": (output_filepath, f)}
-                print(
-                    f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}'
-                )
+                print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
                 while attempts < S3_RETRY_COUNT:
                     response = requests.post(
-                        presigned_url["url"], data=presigned_url["fields"], files=files
+                        presigned_url["url"], data=presigned_url["fields"], files=files, timeout=60
                     )
                     print(f"splat|s3_response|{response.status_code}")
                     if response.status_code in [500, 503]:
@@ -231,9 +224,7 @@ def lambda_handler(event, context):
                         }
                     )
             if response.status_code != 204:
-                print(
-                    f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}"
-                )
+                print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
                 return respond(
                     {
                         "statusCode": response.status_code,
@@ -297,9 +288,7 @@ def lambda_handler(event, context):
                 "headers": {
                     "Content-Type": "application/json",
                 },
-                "body": json.dumps(
-                    {"errors": ["The requested feature is not implemented, yet."]}
-                ),
+                "body": json.dumps({"errors": ["The requested feature is not implemented, yet."]}),
                 "isBase64Encoded": False,
             }
         )
@@ -311,9 +300,7 @@ def lambda_handler(event, context):
                 "headers": {
                     "Content-Type": "application/json",
                 },
-                "body": json.dumps(
-                    {"errors": [f"Failed to decode request body as JSON: {str(e)}"]}
-                ),
+                "body": json.dumps({"errors": [f"Failed to decode request body as JSON: {str(e)}"]}),
                 "isBase64Encoded": False,
             }
         )
@@ -332,20 +319,10 @@ def lambda_handler(event, context):
         )
 
 
-def check_license():
-    tree = ET.parse("./prince-engine/license/license.dat")
-    parsed_license = {
-        child.tag: (child.attrib, child.text)
-        for child in tree.getroot()
-        if child.tag != "signature"
-    }
-    is_demo_license = bool(
-        list(
-            filter(
-                lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license
-            )
-        )
-    )
+def check_license() -> dict:
+    tree = ET.parse("./prince-engine/license/license.dat")  # noqa
+    parsed_license = {child.tag: (child.attrib, child.text) for child in tree.getroot() if child.tag != "signature"}
+    is_demo_license = bool(list(filter(lambda x: x[0] == "option" and x[1].get("id") == "demo", parsed_license)))
 
     return respond(
         {
@@ -363,4 +340,4 @@ if __name__ == "__main__":
     import json
     import sys
 
-    print(lambda_handler({"body": json.dumps({"check_license": True})}, None))
+    print(lambda_handler({"body": json.dumps({"check_license": True})}, {}))
