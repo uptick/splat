@@ -1,14 +1,14 @@
 import base64
-import glob
 import json
 import logging
 import os
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from typing import Literal
 from urllib.parse import urlparse
-from uuid import uuid4
 
 import boto3
 import pydantic
@@ -36,6 +36,7 @@ class Payload(pydantic.BaseModel):
     # Input parameters
     document_content: str | None = None
     document_url: str | None = None
+    renderer: Literal["prince", "playwright", "playwright+prince"] = "prince"
 
     # Output parameters
     bucket_name: str | None = None
@@ -74,30 +75,17 @@ def init() -> None:
     # If there's any files in the font directory, export FONTCONFIG_PATH
     if any(f for f in os.listdir("fonts") if f != "fonts.conf"):
         os.environ["FONTCONFIG_PATH"] = "/var/task/fonts"
-    cleanup()
 
 
-def cleanup() -> None:
-    print("splat|cleanup")
-    extensions_to_remove = ["html", "pdf"]
-    for extension in extensions_to_remove:
-        for path in glob.glob(f"/tmp/*.{extension}"):  # noqa S108
-            try:
-                os.remove(path)
-                print(f"splat|cleanup|removed|{path}")
-            except FileNotFoundError:
-                print(f"splat|cleanup|failed_to_remove|{path}")
-
-
-def pdf_from_string(document_content: str, javascript: bool = False) -> str:
+def pdf_from_string(document_content: str, output_filepath: str, javascript: bool = False) -> str:
     print("splat|pdf_from_string")
     # Save document_content to file
-    with open("/tmp/input.html", "w") as f:  # noqa S108
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as f:
         f.write(document_content)
-    return prince_handler("/tmp/input.html", javascript=javascript)  # noqa S108
+        return prince_handler(f.name, output_filepath, javascript)
 
 
-def pdf_from_url(document_url: str, javascript: bool = False) -> str:
+def pdf_from_url(document_url: str, output_filepath: str, javascript: bool = False) -> str:
     print("splat|pdf_from_url")
     # Fetch document_url and save to file
     response = requests.get(document_url, timeout=120)
@@ -106,9 +94,9 @@ def pdf_from_url(document_url: str, javascript: bool = False) -> str:
             f"Document was unable to be fetched from document_url provided. Server response: {response.content}",
             status_code=500,
         )
-    with open("/tmp/input.html", "w") as f:  # noqa S108
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as f:
         f.write(response.content.decode("utf-8"))
-    return prince_handler("/tmp/input.html", javascript=javascript)  # noqa S108
+        return prince_handler(f.name, output_filepath, javascript)
 
 
 def execute(cmd: list[str]) -> None:
@@ -117,9 +105,7 @@ def execute(cmd: list[str]) -> None:
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
 
-def prince_handler(input_filepath: str, output_filepath: str | None = None, javascript: bool = False) -> str:
-    if not output_filepath:
-        output_filepath = f"/tmp/{uuid4()}.pdf"  # noqa S108
+def prince_handler(input_filepath: str, output_filepath: str, javascript: bool = False) -> str:
     print("splat|prince_command_run")
     # Prepare command
     command = [
@@ -139,25 +125,12 @@ def prince_handler(input_filepath: str, output_filepath: str | None = None, java
     return output_filepath
 
 
-# Entrypoint for AWS
-def lambda_handler(event: dict, context: dict) -> dict:  # noqa
-    try:
-        resp = handler(event, context).as_dict()
-    except SplatPDFGenerationFailure as e:
-        resp = e.as_response().as_dict()
-    except Exception as e:
-        logger.error(f"splat|unknown_error|{str(e)}|stacktrace:", exc_info=True)
-        resp = SplatPDFGenerationFailure(status_code=500, message=str(e)).as_response().as_dict()
-    cleanup()
-    return resp
-
-
-def create_pdf(payload: Payload) -> str:
+def create_pdf(payload: Payload, output_filepath: str) -> str:
     """Creates the PDF and stores it from the payload"""
     if payload.document_content:
-        output_filepath = pdf_from_string(payload.document_content, payload.javascript)
+        pdf_from_string(payload.document_content, output_filepath, payload.javascript)
     elif payload.document_url:
-        output_filepath = pdf_from_url(payload.document_url, payload.javascript)
+        pdf_from_url(payload.document_url, output_filepath, payload.javascript)
     else:
         raise SplatPDFGenerationFailure(
             "Please specify either document_content or document_url",
@@ -258,11 +231,20 @@ def deliver_pdf(body: dict, output_filepath: str) -> Response:
         return deliver_pdf_via_streaming_base64(output_filepath)
 
 
-def handler(event: dict, context: dict) -> Response:  # noqa
-    """
-    TODO:
-    - [ ] use temporary files
-    """
+# Entrypoint for AWS
+def lambda_handler(event: dict, context: dict) -> dict:  # noqa
+    try:
+        resp = handle_event(event).as_dict()
+    except SplatPDFGenerationFailure as e:
+        resp = e.as_response().as_dict()
+    except Exception as e:
+        logger.error(f"splat|unknown_error|{str(e)}|stacktrace:", exc_info=True)
+        resp = SplatPDFGenerationFailure(status_code=500, message=str(e)).as_response().as_dict()
+    return resp
+
+
+def handle_event(event: dict) -> Response:  # noqa
+    """The main body of the lambda sans error handling"""
     print("splat|begin")
 
     # 1) Initialize
@@ -284,13 +266,13 @@ def handler(event: dict, context: dict) -> Response:  # noqa
 
     print(f"splat|javascript={payload.javascript}")
 
-    # 4) Read the html
+    # 4) Generate PDF
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as output_pdf:
+        output_filepath = output_pdf.name
+        create_pdf(payload, output_filepath)
 
-    # 5) Generate PDF
-    output_filepath = create_pdf(payload)
-
-    # 6) Deliver PDF
-    resp = deliver_pdf(body, output_filepath)
+        # 5) Deliver  the PDF
+        resp = deliver_pdf(body, output_filepath)
     return resp
 
 
