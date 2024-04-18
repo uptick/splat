@@ -1,19 +1,21 @@
 import base64
+import enum
 import json
 import logging
 import os
 import subprocess
 import sys
 import tempfile
+import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from typing import Literal
 from urllib.parse import urlparse
 
 import boto3
 import pydantic
 import requests
 import sentry_sdk
+from playwright.sync_api import sync_playwright
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
 logger = logging.getLogger("splat")
@@ -28,15 +30,25 @@ sentry_sdk.init(
 )
 
 
+class Renderers(str, enum.Enum):
+    playwright = "playwright"
+    prince = "prince"
+
+
 class Payload(pydantic.BaseModel):
     # General Parameters
     javascript: bool = False
     check_license: bool = False
 
     # Input parameters
+    ## Embed the document content as a string
     document_content: str | None = None
+    ## Fetch the document from a URL, store it and render it
     document_url: str | None = None
-    renderer: Literal["prince", "playwright", "playwright+prince"] = "prince"
+    ## Browse the document in a browser before rendering
+    browser_url: str | None = None
+    browser_headers: dict = pydantic.Field(default_factory=dict)
+    renderer: Renderers = Renderers.prince
 
     # Output parameters
     bucket_name: str | None = None
@@ -77,26 +89,77 @@ def init() -> None:
         os.environ["FONTCONFIG_PATH"] = "/var/task/fonts"
 
 
-def pdf_from_string(document_content: str, output_filepath: str, javascript: bool = False) -> str:
-    print("splat|pdf_from_string")
-    # Save document_content to file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as f:
-        f.write(document_content)
-        return prince_handler(f.name, output_filepath, javascript)
+def playwright_page_to_pdf(browser_url: str, headers: dict, output_filepath: str) -> None:
+    print("splat|playwright_handler|url=", browser_url)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        context = browser.new_context()
+        context.set_extra_http_headers(headers)
+        page = context.new_page()
+        page.goto(
+            browser_url,
+            wait_until="domcontentloaded",
+        )
+        page.emulate_media(media="print")
+        page.pdf(path=output_filepath, format="A4")
 
 
-def pdf_from_url(document_url: str, output_filepath: str, javascript: bool = False) -> str:
-    print("splat|pdf_from_url")
-    # Fetch document_url and save to file
-    response = requests.get(document_url, timeout=120)
+def playwright_page_to_html_string(browser_url: str, headers: dict) -> str:
+    print("splat|playwright_handler|url=", browser_url)
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        context = browser.new_context()
+        context.set_extra_http_headers(headers)
+        page = context.new_page()
+        page.goto(
+            browser_url,
+            wait_until="domcontentloaded",
+        )
+        page.emulate_media(media="print")
+        return page.content()
+
+
+def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
+    """Generates pdf from string content of the document"""
+    print("splat|pdf_from_document_content")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as temporary_html_file:
+        assert payload.document_content
+        temporary_html_file.write(payload.document_content)
+        temporary_html_file.flush()
+        if payload.renderer == Renderers.prince:
+            prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
+        else:
+            playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
+
+
+def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
+    """Generates pdf from a remote html document"""
+    print("splat|pdf_from_document_url")
+    response = requests.get(payload.document_url, timeout=120)
     if response.status_code != 200:
         raise SplatPDFGenerationFailure(
             f"Document was unable to be fetched from document_url provided. Server response: {response.content}",
             status_code=500,
         )
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as f:
-        f.write(response.content.decode("utf-8"))
-        return prince_handler(f.name, output_filepath, javascript)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as temporary_html_file:
+        temporary_html_file.write(response.content.decode("utf-8"))
+        temporary_html_file.flush()
+        if payload.renderer == Renderers.prince:
+            prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
+        else:
+            playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
+
+
+def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
+    """Generates pdf by visiting a browser url"""
+    print("splat|pdf_from_browser_url")
+    # First we need to visit the browser with playwright and save the html
+    assert payload.browser_url
+    if payload.renderer == Renderers.prince:
+        html = playwright_page_to_html_string(payload.browser_url, payload.browser_headers)
+        pdf_from_document_content(Payload(document_content=html, renderer=Renderers.prince), output_filepath)
+    else:
+        playwright_page_to_pdf(payload.browser_url, payload.browser_headers, output_filepath)
 
 
 def execute(cmd: list[str]) -> None:
@@ -105,7 +168,7 @@ def execute(cmd: list[str]) -> None:
         raise subprocess.CalledProcessError(result.returncode, cmd)
 
 
-def prince_handler(input_filepath: str, output_filepath: str, javascript: bool = False) -> str:
+def prince_handler(input_filepath: str, output_filepath: str, javascript: bool = False) -> None:
     print("splat|prince_command_run")
     # Prepare command
     command = [
@@ -121,42 +184,49 @@ def prince_handler(input_filepath: str, output_filepath: str, javascript: bool =
     # Run command and capture output
     print(f"splat|invoke_prince {' '.join(command)}")
     execute(command)
-    # Log prince output
-    return output_filepath
 
 
 def create_pdf(payload: Payload, output_filepath: str) -> str:
     """Creates the PDF and stores it from the payload"""
     if payload.document_content:
-        pdf_from_string(payload.document_content, output_filepath, payload.javascript)
+        pdf_from_document_content(payload, output_filepath)
     elif payload.document_url:
-        pdf_from_url(payload.document_url, output_filepath, payload.javascript)
+        pdf_from_document_url(payload, output_filepath)
+    elif payload.browser_url:
+        pdf_from_browser_url(payload, output_filepath)
     else:
         raise SplatPDFGenerationFailure(
-            "Please specify either document_content or document_url",
+            "Please specify either document_content or document_url or browser_url in the payload.",
             status_code=400,
         )
     return output_filepath
 
 
-def deliver_pdf_to_s3_bucket(body: dict, output_filepath: str) -> Response:
+def deliver_pdf_to_s3_bucket(payload: Payload, output_filepath: str) -> Response:
     print("splat|bucket_save")
-    # Upload to s3 and return URL
-    bucket_name = body.get("bucket_name")
-    key = "output.pdf"
+    key = f"{uuid.uuid4()}.pdf"
     s3 = boto3.resource("s3")
-    bucket = s3.Bucket(bucket_name)
-    bucket.upload_file(output_filepath, key)  # noqa S108
-    location = boto3.client("s3").get_bucket_location(Bucket=bucket_name)["LocationConstraint"]
-    url = f"https://{bucket_name}.s3-{location}.amazonaws.com/{key}"
+    bucket = s3.Bucket(payload.bucket_name)
+    bucket.upload_file(output_filepath, key)
+
+    presigned_url = boto3.client("s3").generate_presigned_url(
+        "get_object",
+        Params={"Bucket": payload.bucket_name, "Key": key},
+    )
     return Response(
-        body=json.dumps({"url": url}),
+        body=json.dumps(
+            {
+                "bucket": payload.bucket_name,
+                "key": key,
+                "presigned_url": presigned_url,
+            }
+        ),
     )
 
 
-def deliver_pdf_to_presigned_url(body: dict, output_filepath: str) -> Response:
+def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Response:
     print("splat|presigned_url_save")
-    presigned_url = body.get("presigned_url")
+    presigned_url = payload.presigned_url
     try:
         urlparse(presigned_url["url"])
         assert presigned_url["fields"]
@@ -222,11 +292,11 @@ def deliver_pdf_via_streaming_base64(output_filepath: str) -> Response:
     )
 
 
-def deliver_pdf(body: dict, output_filepath: str) -> Response:
-    if body.get("bucket_name"):
-        return deliver_pdf_to_s3_bucket(body, output_filepath)
-    elif body.get("presigned_url"):
-        return deliver_pdf_to_presigned_url(body, output_filepath)
+def deliver_pdf(payload: Payload, output_filepath: str) -> Response:
+    if payload.bucket_name:
+        return deliver_pdf_to_s3_bucket(payload, output_filepath)
+    elif payload.presigned_url:
+        return deliver_pdf_to_presigned_url(payload, output_filepath)
     else:
         return deliver_pdf_via_streaming_base64(output_filepath)
 
@@ -257,7 +327,7 @@ def handle_event(event: dict) -> Response:  # noqa
     except pydantic.ValidationError as e:
         raise SplatPDFGenerationFailure(
             status_code=400,
-            message="Invalid payload",
+            message=f"Invalid payload: {e}",
         ) from e
 
     # 3) Check licence if user is requesting that
@@ -265,6 +335,7 @@ def handle_event(event: dict) -> Response:  # noqa
         return check_license()
 
     print(f"splat|javascript={payload.javascript}")
+    print(f"splat|renderer={payload.renderer}")
 
     # 4) Generate PDF
     with tempfile.NamedTemporaryFile(suffix=".pdf") as output_pdf:
@@ -272,7 +343,7 @@ def handle_event(event: dict) -> Response:  # noqa
         create_pdf(payload, output_filepath)
 
         # 5) Deliver  the PDF
-        resp = deliver_pdf(body, output_filepath)
+        resp = deliver_pdf(payload, output_filepath)
     return resp
 
 
