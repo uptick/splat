@@ -3,6 +3,8 @@ version: '3.9'
 services:
   dev:
     image: dev:latest
+    platform: linux/amd64
+
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -13,6 +15,7 @@ services:
 
   lambda:
     image: splat:dev
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
