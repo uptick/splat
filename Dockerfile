@@ -1,19 +1,64 @@
-#	docker build --platform linux/amd64 -t ${IMAGE} --target=base .
-# Target: base
-FROM public.ecr.aws/lambda/python:3.11-x86_64 as base
-ENV PRINCE_FILENAME=prince-14.1-linux-generic-x86_64
-RUN yum clean all \
-    && yum install -y unzip giflib \
-    && curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip  \
-    && unzip prince-14.2-aws-lambda.zip \
-    && rm -rf /var/cache/yum \
-    && rm prince-14.2-aws-lambda.zip
-# Copy requirements, and optionally the fonts.zip if it exists.
+# Define function directory
+ARG FUNCTION_DIR="/var/task"
+
+FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy as build-image
+
+# Install aws-lambda-cpp build dependencies
+RUN apt-get update && \
+    apt-get install -y \
+    g++ \
+    make \
+    cmake \
+    libcurl4-openssl-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+
+# Include global arg in this stage of the build
+ARG FUNCTION_DIR
+# Create function directory
+RUN mkdir -p ${FUNCTION_DIR}
+WORKDIR ${FUNCTION_DIR}
+
+# Install the runtime interface client
 COPY lambda_requirements.txt fonts.zip* ./
-RUN pip3 install -r lambda_requirements.txt
-# Fonts zip may not exist, so || true it.
+RUN pip3 install -r lambda_requirements.txt --target ${FUNCTION_DIR}
+
+# ------------------------------------------------------
+
+# Multi-stage build: grab a fresh copy of the base image
+FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy
+
+# Include global arg in this stage of the build
+ARG FUNCTION_DIR
+# Set working directory to function root directory
+WORKDIR ${FUNCTION_DIR}
+
+# Copy in the build image dependencies
+COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
+
+COPY ./entry_script.sh /entry_script.sh
+RUN curl -Lo aws-lambda-rie \
+    https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    chmod +x aws-lambda-rie && \
+    mv aws-lambda-rie /usr/local/bin/aws-lambda-rie
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libavif13 \
+    unzip \
+    libgif7 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and extract PrinceXML
+RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && \
+    unzip prince-14.2-aws-lambda.zip && \
+    rm prince-14.2-aws-lambda.zip
+
+
 CMD rm -rf /var/task/fonts || true
 COPY font[s] /var/task/fonts
+RUN mkdir -p /var/task/fonts || true
 COPY license.dat ./prince-engine/license/license.dat
 COPY lambda_function.py ./
-CMD ["lambda_function.lambda_handler"]
+
+ENTRYPOINT [ "/entry_script.sh","lambda_function.lambda_handler" ]

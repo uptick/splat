@@ -4,6 +4,7 @@ from typing import Any
 from uuid import uuid4
 
 import boto3
+import pytest
 import requests
 from botocore.client import Config
 
@@ -52,50 +53,85 @@ def test_check_license_returns_a_license_payload() -> None:
     assert body["is_demo_license"] is False
 
 
-def test_sending_a_presigned_url_of_a_html_document():
-    s3_client = get_s3_client()
+@pytest.mark.parametrize("renderer", ["princexml", "playwright"])
+class TestRenderers:
+    def test_generating_pdf_from_document_url(self, renderer: str):
+        s3_client = get_s3_client()
 
-    key = gen_temp_key()
-    s3_client.put_object(Bucket=BUCKET_NAME, Key=key, Body=b"<h1>Z</h1>")
+        key = gen_temp_key()
+        s3_client.put_object(Bucket=BUCKET_NAME, Key=key, Body=b"<h1>Z</h1>")
 
-    document_url = s3_client.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": BUCKET_NAME, "Key": key},
-    )
+        document_url = s3_client.generate_presigned_url(
+            "get_object",
+            Params={"Bucket": BUCKET_NAME, "Key": key},
+        )
 
-    status_code, _, pdf_body = call_lamdba(
-        {"document_url": document_url},
-    )
+        status_code, _, pdf_body = call_lamdba(
+            {"document_url": document_url, "renderer": renderer},
+        )
 
-    assert b"Z" in pdf_body
-    assert status_code == 200
+        assert b"Z" in pdf_body
+        assert status_code == 200
+
+    def test_generating_pdf_from_document_content(self, renderer: str):
+        """Send an embedded html document and receive the pdf bytes for it"""
+        status_code, _, pdf_body = call_lamdba(
+            {"document_content": "<h1>Z</h1>", "renderer": renderer},
+        )
+
+        assert b"Z" in pdf_body
+        assert status_code == 200
+
+    def test_generating_pdf_from_browser_url(self, renderer: str):
+        status_code, _, pdf_body = call_lamdba(
+            {"browser_url": "http://google.com", "renderer": renderer},
+        )
+
+        assert b"Z" in pdf_body
+        assert status_code == 200
 
 
-def test_sending_document_content():
-    """Send an embedded html document and receive the pdf bytes for it"""
-    status_code, _, pdf_body = call_lamdba(
-        {"document_content": "<h1>Z</h1>"},
-    )
+class TestDeliveryMechanisms:
+    def test_delivering_pdf_to_presigned_url(self):
+        s3_client = get_s3_client()
 
-    assert b"Z" in pdf_body
-    assert status_code == 200
+        key = gen_temp_key(format="pdf")
+        presigned_url = s3_client.generate_presigned_post(
+            BUCKET_NAME,
+            key,
+        )
+
+        status_code, _, _ = call_lamdba(
+            {"document_content": "<h1>Z</h1>", "presigned_url": presigned_url},
+        )
+
+        obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
+        pdf_bytes = obj["Body"].read()
+
+        assert status_code == 201
+        assert b"Z" in pdf_bytes
+
+    def test_delivering_pdf_via_base64_encoding(self):
+        status_code, _, pdf_bytes = call_lamdba(
+            {"document_content": "<h1>Z</h1>"},
+        )
+        assert status_code == 200
+        assert b"Z" in pdf_bytes
+
+    def test_storing_pdf_via_bucket_name(self):
+        status_code, body, _ = call_lamdba(
+            {"document_content": "<h1>Z</h1>", "bucket_name": BUCKET_NAME},
+        )
+        assert status_code == 200
+        assert body["presigned_url"]
+        assert body["bucket"] == BUCKET_NAME
+        assert body["key"].endswith(".pdf")
 
 
-def test_storing_output_pdf_to_a_presigned_url():
-    s3_client = get_s3_client()
+class TestInputValidation:
+    def test_sending_invalid_presigned_url_an_error_is_returned(self):
+        status_code, _, _ = call_lamdba(
+            {"document_content": "<h1>Z</h1>", "presigned_url": "FAKE_URL"}, raise_exception=False
+        )
 
-    key = gen_temp_key(format="pdf")
-    presigned_url = s3_client.generate_presigned_post(
-        BUCKET_NAME,
-        key,
-    )
-
-    status_code, _, _ = call_lamdba(
-        {"document_content": "<h1>Z</h1>", "presigned_url": presigned_url},
-    )
-
-    obj = s3_client.get_object(Bucket=BUCKET_NAME, Key=key)
-    pdf_bytes = obj["Body"].read()
-
-    assert status_code == 201
-    assert b"Z" in pdf_bytes
+        assert status_code == 400

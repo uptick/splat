@@ -17,11 +17,11 @@ depends = ['format', 'ruff-check']
 
 [tasks.test]
 description = "Run all tests"
-run = "docker compose run --rm -it dev pytest ."
+run = "docker compose --profile test run --rm -it dev pytest ."
 
 [tasks."ci:test"]
 description = "Run all tests"
-run = "docker compose run --rm  dev pytest ."
+run = "docker compose --profile test run --rm dev pytest ."
 depends = ["build"]
 
 [tasks.ci]

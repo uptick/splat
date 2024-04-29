@@ -3,6 +3,8 @@ version: '3.9'
 services:
   dev:
     image: dev:latest
+    platform: linux/amd64
+
     build:
       context: .
       dockerfile: Dockerfile.dev
@@ -10,9 +12,11 @@ services:
       - './:/app'
     depends_on:
       - lambda
+    profiles: [test]
 
   lambda:
     image: splat:dev
+    platform: linux/amd64
     build:
       context: .
       dockerfile: Dockerfile
