@@ -102,10 +102,10 @@ def _playwright_visit_page(browser_url: str, headers: dict) -> Iterator[playwrig
         context = browser.new_context()
         context.set_extra_http_headers(headers)
         page = context.new_page()
-        page.goto(
-            browser_url,
-            wait_until="domcontentloaded",
-        )
+        print("hi")
+        print(browser_url)
+        page.goto(browser_url, timeout=1000 * 60 * 10)
+        print("done...")
         page.emulate_media(media="print")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_load_state("networkidle")
