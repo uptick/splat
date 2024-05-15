@@ -98,14 +98,53 @@ def init() -> None:
 def _playwright_visit_page(browser_url: str, headers: dict) -> Iterator[playwright.sync_api.Page]:
     print("splat|playwright_handler|url=", browser_url)
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(
+            headless=True,
+            args=[
+                "--single-process",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--no-zygote",
+                "--disable-dev-shm-usage",
+                "--autoplay-policy=user-gesture-required",
+                "--disable-background-networking",
+                "--disable-background-timer-throttling",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-breakpad",
+                "--disable-client-side-phishing-detection",
+                "--disable-component-update",
+                "--disable-default-apps",
+                "--disable-domain-reliability",
+                "--disable-extensions",
+                "--disable-features=AudioServiceOutOfProcess",
+                "--disable-hang-monitor",
+                "--disable-ipc-flooding-protection",
+                "--disable-notifications",
+                "--disable-offer-store-unmasked-wallet-cards",
+                "--disable-popup-blocking",
+                "--disable-print-preview",
+                "--disable-prompt-on-repost",
+                "--disable-renderer-backgrounding",
+                "--disable-setuid-sandbox",
+                "--disable-speech-api",
+                "--disable-sync",
+                "--disk-cache-size=33554432",
+                "--hide-scrollbars",
+                "--ignore-gpu-blacklist",
+                "--metrics-recording-only",
+                "--mute-audio",
+                "--no-default-browser-check",
+                "--no-first-run",
+                "--no-pings",
+                "--password-store=basic",
+                "--use-gl=swiftshader",
+                "--use-mock-keychain",
+            ],
+        )
         context = browser.new_context()
         context.set_extra_http_headers(headers)
         page = context.new_page()
-        print("hi")
-        print(browser_url)
         page.goto(browser_url, timeout=1000 * 60 * 10)
-        print("done...")
         page.emulate_media(media="print")
         page.wait_for_load_state("domcontentloaded")
         page.wait_for_load_state("networkidle")
@@ -132,7 +171,11 @@ def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
         if payload.renderer == Renderers.princexml:
             prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
         else:
-            playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
+            playwright_page_to_pdf(
+                f"file://{temporary_html_file.name}",
+                payload.browser_headers,
+                output_filepath,
+            )
 
 
 def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
@@ -150,7 +193,11 @@ def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
         if payload.renderer == Renderers.princexml:
             prince_handler(temporary_html_file.name, output_filepath, payload.javascript)
         else:
-            playwright_page_to_pdf(f"file://{temporary_html_file.name}", payload.browser_headers, output_filepath)
+            playwright_page_to_pdf(
+                f"file://{temporary_html_file.name}",
+                payload.browser_headers,
+                output_filepath,
+            )
 
 
 def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
@@ -160,7 +207,10 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
     assert payload.browser_url
     if payload.renderer == Renderers.princexml:
         html = playwright_page_to_html_string(payload.browser_url, payload.browser_headers)
-        pdf_from_document_content(Payload(document_content=html, renderer=Renderers.princexml), output_filepath)
+        pdf_from_document_content(
+            Payload(document_content=html, renderer=Renderers.princexml),
+            output_filepath,
+        )
     else:
         playwright_page_to_pdf(payload.browser_url, payload.browser_headers, output_filepath)
 
@@ -247,7 +297,12 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
         files = {"file": (output_filepath, f)}
         print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
         while attempts < S3_RETRY_COUNT:
-            response = requests.post(presigned_url["url"], data=presigned_url["fields"], files=files, timeout=500)
+            response = requests.post(
+                presigned_url["url"],
+                data=presigned_url["fields"],
+                files=files,
+                timeout=500,
+            )
             print(f"splat|s3_response|{response.status_code}")
             if response.status_code in [500, 503]:
                 attempts += 1
