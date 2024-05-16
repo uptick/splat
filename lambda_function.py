@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import urlparse
 
 import boto3
@@ -53,7 +54,7 @@ class Payload(pydantic.BaseModel):
     ## Browse the document in a browser before rendering
     browser_url: str | None = None
     browser_headers: dict = pydantic.Field(default_factory=dict)
-    browser_pdf_options: Mapping[str, str] = pydantic.Field(default_factory=dict)
+    browser_pdf_options: Mapping[str, Any] = pydantic.Field(default_factory=dict)
     renderer: Renderers = Renderers.princexml
 
     # Output parameters
