@@ -41,7 +41,7 @@ class Renderers(str, enum.Enum):
 
 class Papersize(str, enum.Enum):
     A4 = "A4"
-    Letter = "letter"
+    Letter = "Letter"
 
 
 class Payload(pydantic.BaseModel):
