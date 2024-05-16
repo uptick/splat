@@ -68,7 +68,11 @@ class TestRenderers:
         )
 
         status_code, _, pdf_body = call_lamdba(
-            {"document_url": document_url, "renderer": renderer, "browser_papersize": browser_papersize},
+            {
+                "document_url": document_url,
+                "renderer": renderer,
+                "browser_pdf_options": {"format": browser_papersize},
+            },
         )
 
         assert b"Z" in pdf_body
@@ -77,7 +81,11 @@ class TestRenderers:
     def test_generating_pdf_from_document_content(self, renderer: str, browser_papersize: str):
         """Send an embedded html document and receive the pdf bytes for it"""
         status_code, _, pdf_body = call_lamdba(
-            {"document_content": "<h1>Z</h1>", "renderer": renderer, "browser_papersize": browser_papersize},
+            {
+                "document_content": "<h1>Z</h1>",
+                "renderer": renderer,
+                "browser_pdf_options": {"format": browser_papersize},
+            },
         )
 
         assert b"Z" in pdf_body
@@ -85,7 +93,11 @@ class TestRenderers:
 
     def test_generating_pdf_from_browser_url(self, renderer: str, browser_papersize: str):
         status_code, _, pdf_body = call_lamdba(
-            {"browser_url": "http://google.com", "renderer": renderer, "browser_papersize": browser_papersize},
+            {
+                "browser_url": "http://google.com",
+                "renderer": renderer,
+                "browser_pdf_options": {"format": browser_papersize},
+            },
         )
 
         assert b"Z" in pdf_body

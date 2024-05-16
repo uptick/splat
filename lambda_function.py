@@ -8,7 +8,7 @@ import sys
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
@@ -39,11 +39,6 @@ class Renderers(str, enum.Enum):
     princexml = "princexml"
 
 
-class Papersize(str, enum.Enum):
-    A4 = "A4"
-    Letter = "Letter"
-
-
 class Payload(pydantic.BaseModel):
     # NOTE: When updating this model, also update the equivalent documentation
     # General Parameters
@@ -58,7 +53,7 @@ class Payload(pydantic.BaseModel):
     ## Browse the document in a browser before rendering
     browser_url: str | None = None
     browser_headers: dict = pydantic.Field(default_factory=dict)
-    browser_papersize: Papersize = Papersize.A4
+    browser_pdf_options: Mapping[str, str] = pydantic.Field(default_factory=dict)
     renderer: Renderers = Renderers.princexml
 
     # Output parameters
@@ -158,10 +153,10 @@ def _playwright_visit_page(browser_url: str, headers: dict) -> Iterator[playwrig
 
 
 def playwright_page_to_pdf(
-    browser_url: str, headers: dict, output_filepath: str, papersize: Papersize = Papersize.A4
+    browser_url: str, headers: dict, output_filepath: str, pdf_options: Mapping[str, str]
 ) -> None:
     with _playwright_visit_page(browser_url, headers) as page:
-        page.pdf(path=output_filepath, format=papersize)
+        page.pdf(path=output_filepath, **pdf_options)
 
 
 def playwright_page_to_html_string(browser_url: str, headers: dict) -> str:
@@ -183,7 +178,7 @@ def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
                 f"file://{temporary_html_file.name}",
                 payload.browser_headers,
                 output_filepath,
-                payload.browser_papersize,
+                payload.browser_pdf_options,
             )
 
 
@@ -206,7 +201,7 @@ def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
                 f"file://{temporary_html_file.name}",
                 payload.browser_headers,
                 output_filepath,
-                payload.browser_papersize,
+                payload.browser_pdf_options,
             )
 
 
@@ -226,7 +221,7 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
             payload.browser_url,
             payload.browser_headers,
             output_filepath,
-            payload.browser_papersize,
+            payload.browser_pdf_options,
         )
 
 
