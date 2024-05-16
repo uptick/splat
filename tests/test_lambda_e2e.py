@@ -54,7 +54,7 @@ def test_check_license_returns_a_license_payload() -> None:
 
 
 @pytest.mark.parametrize("renderer", ["princexml", "playwright"])
-@pytest.mark.parametrize("browser_papersize", ["A4", "letter"])
+@pytest.mark.parametrize("browser_papersize", ["A4", "Letter"])
 class TestRenderers:
     def test_generating_pdf_from_document_url(self, renderer: str, browser_papersize: str):
         s3_client = get_s3_client()
