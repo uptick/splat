@@ -14,17 +14,18 @@ This can be done via a function_url, apigateway or lambda invoke.
 
 Event payload body.
 
-|Field | Type| Description|
-|---|---|---|
-| **javascript (princexml)**   |  boolean (False) | Enables [princeXML's javascript execution](https://www.princexml.com/doc/javascript/). This will not render react but can be used for formatting. |
-| **check_license**  |   boolean (False) | Send this field to receive a check on remaining license usage |
-| **document_content** | string | Embed the html content in the payload. There will be AWS payload size limitations.|
-| **document_url**| url | Fetch the html content from `document_url` to disk before rendering.|
-| **browser_url** | url | Browser the `browser_url` with `playwright` before rendering with `renderer`|
-| **browser_headers**| Mapping[str,str] | Add additional headers to playwright before visiting `browser_url`|
-| **renderer**| `princexml` or `playwright`| Renderer to render the html with |
-| **bucket_name**| string | Output the resulting pdf to `s3://{bucket_name}/{uuid}.pdf`. The lambda will require permission to upload to the bucket. The response will include `bucket`, `key`, `presigned_url`|
-| **presigned_url**| url | Output the resulting pdf to the presigned url. Generate the presigned url with `put_object`. See Output for more information.|
+| Field                      | Type                        | Description                                                                                                                                                                         |
+|----------------------------|-----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **javascript (princexml)** | boolean (False)             | Enables [princeXML's javascript execution](https://www.princexml.com/doc/javascript/). This will not render react but can be used for formatting.                                   |
+| **check_license**          | boolean (False)             | Send this field to receive a check on remaining license usage                                                                                                                       |
+| **document_content**       | string                      | Embed the html content in the payload. There will be AWS payload size limitations.                                                                                                  |
+| **document_url**           | url                         | Fetch the html content from `document_url` to disk before rendering.                                                                                                                |
+| **browser_url**            | url                         | Browser the `browser_url` with `playwright` before rendering with `renderer`                                                                                                        |
+| **browser_headers**        | Mapping[str,str]            | Add additional headers to playwright before visiting `browser_url`                                                                                                                  |
+| **browser_papersize**      | `A4` or `letter`            | Size of the page when creating PDF with playwright                                                                                                                                  |                                                                                                                                                                           |
+| **renderer**               | `princexml` or `playwright` | Renderer to render the html with                                                                                                                                                    |
+| **bucket_name**            | string                      | Output the resulting pdf to `s3://{bucket_name}/{uuid}.pdf`. The lambda will require permission to upload to the bucket. The response will include `bucket`, `key`, `presigned_url` |
+| **presigned_url**          | url                         | Output the resulting pdf to the presigned url. Generate the presigned url with `put_object`. See Output for more information.                                                       |
 
 ### Input
 
