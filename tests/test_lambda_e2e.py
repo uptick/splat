@@ -54,8 +54,9 @@ def test_check_license_returns_a_license_payload() -> None:
 
 
 @pytest.mark.parametrize("renderer", ["princexml", "playwright"])
+@pytest.mark.parametrize("browser_papersize", ["A4", "letter"])
 class TestRenderers:
-    def test_generating_pdf_from_document_url(self, renderer: str):
+    def test_generating_pdf_from_document_url(self, renderer: str, browser_papersize: str):
         s3_client = get_s3_client()
 
         key = gen_temp_key()
@@ -67,24 +68,24 @@ class TestRenderers:
         )
 
         status_code, _, pdf_body = call_lamdba(
-            {"document_url": document_url, "renderer": renderer},
+            {"document_url": document_url, "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body
         assert status_code == 200
 
-    def test_generating_pdf_from_document_content(self, renderer: str):
+    def test_generating_pdf_from_document_content(self, renderer: str, browser_papersize: str):
         """Send an embedded html document and receive the pdf bytes for it"""
         status_code, _, pdf_body = call_lamdba(
-            {"document_content": "<h1>Z</h1>", "renderer": renderer},
+            {"document_content": "<h1>Z</h1>", "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body
         assert status_code == 200
 
-    def test_generating_pdf_from_browser_url(self, renderer: str):
+    def test_generating_pdf_from_browser_url(self, renderer: str, browser_papersize: str):
         status_code, _, pdf_body = call_lamdba(
-            {"browser_url": "http://google.com", "renderer": renderer},
+            {"browser_url": "http://google.com", "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body
