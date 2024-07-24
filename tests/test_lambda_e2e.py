@@ -1,5 +1,6 @@
 import base64
 import json
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -53,6 +54,14 @@ def test_check_license_returns_a_license_payload() -> None:
     assert body["is_demo_license"] is False
 
 
+def test_generating_pdf_with_fonts_disabled_returns_error():
+    status_code, _, pdf_body = call_lamdba(
+        {"document_content": Path("./tests/font-disabled.html").read_text(), "renderer": "princexml"},
+        raise_exception=False,
+    )
+    assert status_code == 400
+
+
 @pytest.mark.parametrize("renderer", ["princexml", "playwright"])
 @pytest.mark.parametrize("browser_papersize", ["A4", "Letter"])
 class TestRenderers:
@@ -68,11 +77,7 @@ class TestRenderers:
         )
 
         status_code, _, pdf_body = call_lamdba(
-            {
-                "document_url": document_url,
-                "renderer": renderer,
-                "browser_pdf_options": {"format": browser_papersize},
-            },
+            {"document_url": document_url, "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body
@@ -81,11 +86,7 @@ class TestRenderers:
     def test_generating_pdf_from_document_content(self, renderer: str, browser_papersize: str):
         """Send an embedded html document and receive the pdf bytes for it"""
         status_code, _, pdf_body = call_lamdba(
-            {
-                "document_content": "<h1>Z</h1>",
-                "renderer": renderer,
-                "browser_pdf_options": {"format": browser_papersize},
-            },
+            {"document_content": "<h1>Z</h1>", "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body
@@ -93,11 +94,7 @@ class TestRenderers:
 
     def test_generating_pdf_from_browser_url(self, renderer: str, browser_papersize: str):
         status_code, _, pdf_body = call_lamdba(
-            {
-                "browser_url": "http://google.com",
-                "renderer": renderer,
-                "browser_pdf_options": {"format": browser_papersize},
-            },
+            {"browser_url": "http://google.com", "renderer": renderer, "browser_papersize": browser_papersize},
         )
 
         assert b"Z" in pdf_body

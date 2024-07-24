@@ -1,7 +1,6 @@
 import base64
 import enum
 import json
-import logging
 import os
 import subprocess
 import sys
@@ -20,10 +19,11 @@ import playwright.sync_api
 import pydantic
 import requests
 import sentry_sdk
+from aws_lambda_powertools import Logger
 from playwright.sync_api import sync_playwright
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
-logger = logging.getLogger("splat")
+logger = Logger(service="splat")
 
 S3_RETRY_COUNT = 10
 
@@ -98,7 +98,7 @@ def init() -> None:
 
 @contextmanager
 def _playwright_visit_page(browser_url: str, headers: dict) -> Iterator[playwright.sync_api.Page]:
-    print("splat|playwright_handler|url=", browser_url)
+    logger.info("splat|playwright_handler|url=%s", browser_url)
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -167,7 +167,7 @@ def playwright_page_to_html_string(browser_url: str, headers: dict) -> str:
 
 def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
     """Generates pdf from string content of the document"""
-    print("splat|pdf_from_document_content")
+    logger.info("splat|pdf_from_document_content")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".html") as temporary_html_file:
         assert payload.document_content
         temporary_html_file.write(payload.document_content)
@@ -185,7 +185,7 @@ def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
 
 def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
     """Generates pdf from a remote html document"""
-    print("splat|pdf_from_document_url")
+    logger.info("splat|pdf_from_document_url")
     response = requests.get(payload.document_url, timeout=120)
     if response.status_code != 200:
         raise SplatPDFGenerationFailure(
@@ -208,7 +208,7 @@ def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
 
 def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
     """Generates pdf by visiting a browser url"""
-    print("splat|pdf_from_browser_url")
+    logger.info("splat|pdf_from_browser_url")
     # First we need to visit the browser with playwright and save the html
     assert payload.browser_url
     if payload.renderer == Renderers.princexml:
@@ -227,13 +227,29 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
 
 
 def execute(cmd: list[str]) -> None:
-    result = subprocess.run(cmd)  # noqa
-    if result.returncode != 0:
-        raise subprocess.CalledProcessError(result.returncode, cmd)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)  # noqa
+    while True:
+        output = process.stdout.readline().decode().strip()
+        error = process.stderr.readline().decode().strip()
+        if output:
+            logger.info("prince|:%s", output)
+        if error:
+            logger.info("prince|%s", error)
+            if "unable to find any available fonts" in error.lower():
+                process.kill()
+                raise SplatPDFGenerationFailure(
+                    "Prince was unable to find any available fonts. Did you disable them with prince-no-fallback?",
+                    status_code=400,
+                )
+
+        if process.poll() is not None:
+            break
+    if process.returncode != 0:
+        raise subprocess.CalledProcessError(process.returncode, cmd)
 
 
 def prince_handler(input_filepath: str, output_filepath: str, javascript: bool = False) -> None:
-    print("splat|prince_command_run")
+    logger.info("splat|prince_command_run")
     # Prepare command
     command = [
         "./prince",
@@ -246,8 +262,9 @@ def prince_handler(input_filepath: str, output_filepath: str, javascript: bool =
     if javascript:
         command.append("--javascript")
     # Run command and capture output
-    print(f"splat|invoke_prince {' '.join(command)}")
+    logger.info(f"splat|invoke_prince {' '.join(command)}")
     execute(command)
+    logger.info("finished")
 
 
 def create_pdf(payload: Payload, output_filepath: str) -> str:
@@ -267,7 +284,7 @@ def create_pdf(payload: Payload, output_filepath: str) -> str:
 
 
 def deliver_pdf_to_s3_bucket(payload: Payload, output_filepath: str) -> Response:
-    print("splat|bucket_save")
+    logger.info("splat|bucket_save")
     key = f"{uuid.uuid4()}.pdf"
     s3 = boto3.resource("s3")
     bucket = s3.Bucket(payload.bucket_name)
@@ -289,7 +306,7 @@ def deliver_pdf_to_s3_bucket(payload: Payload, output_filepath: str) -> Response
 
 
 def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Response:
-    print("splat|presigned_url_save")
+    logger.info("splat|presigned_url_save")
     presigned_url = payload.presigned_url
     try:
         urlparse(presigned_url["url"])
@@ -300,13 +317,13 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
             status_code=400,
             message="Invalid presigned URL",
         ) from e
-    print("output_filepath=", output_filepath)
+    logger.info("output_filepath=%s", output_filepath)
     with open(output_filepath, "rb") as f:
         # 5xx responses are normal for s3, recommendation is to try 10 times
         # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
         attempts = 0
         files = {"file": (output_filepath, f)}
-        print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
+        logger.info(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
         while attempts < S3_RETRY_COUNT:
             response = requests.post(
                 presigned_url["url"],
@@ -314,21 +331,21 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
                 files=files,
                 timeout=500,
             )
-            print(f"splat|s3_response|{response.status_code}")
+            logger.info(f"splat|s3_response|{response.status_code}")
             if response.status_code in [500, 503]:
                 attempts += 1
-                print("splat|s3_retry")
+                logger.info("splat|s3_retry")
             else:
                 break
         else:
-            print("splat|s3_max_retry_reached")
+            logger.info("splat|s3_max_retry_reached")
             return Response(
                 status_code=response.status_code,
                 headers=response.headers,
                 body=response.content,
             )
     if response.status_code != 204:
-        print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
+        logger.info(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
         return Response(
             status_code=response.status_code,
             headers=response.headers,
@@ -341,7 +358,7 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
 
 
 def deliver_pdf_via_streaming_base64(output_filepath: str) -> Response:
-    print("splat|stream_binary_response")
+    logger.info("splat|stream_binary_response")
     # Otherwise just stream the pdf data back.
     with open(output_filepath, "rb") as f:
         binary_data = f.read()
@@ -371,6 +388,7 @@ def deliver_pdf(payload: Payload, output_filepath: str) -> Response:
 
 
 # Entrypoint for AWS
+@logger.inject_lambda_context(log_event=False)
 def lambda_handler(event: dict, context: dict) -> dict:  # noqa
     try:
         resp = handle_event(event).as_dict()
@@ -384,7 +402,7 @@ def lambda_handler(event: dict, context: dict) -> dict:  # noqa
 
 def handle_event(event: dict) -> Response:  # noqa
     """The main body of the lambda sans error handling"""
-    print("splat|begin")
+    logger.info("splat|begin")
 
     # 1) Initialize
     init()
@@ -403,8 +421,8 @@ def handle_event(event: dict) -> Response:  # noqa
     if payload.check_license:
         return check_license()
 
-    print(f"splat|javascript={payload.javascript}")
-    print(f"splat|renderer={payload.renderer}")
+    logger.info(f"splat|javascript={payload.javascript}")
+    logger.info(f"splat|renderer={payload.renderer}")
 
     # 4) Generate PDF
     with tempfile.NamedTemporaryFile(suffix=".pdf") as output_pdf:
