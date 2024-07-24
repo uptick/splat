@@ -4,3 +4,4 @@ sentry-sdk==1.39.0
 awslambdaric
 pydantic
 playwright==1.43.0
+aws-lambda-powertools==2.41.0
