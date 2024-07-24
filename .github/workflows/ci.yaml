@@ -2,17 +2,18 @@ name: Python
 on:
   push:
     branches:
-      - release/*
-      - develop
-      - master
-      - main
+    - release/*
+    - develop
+    - master
+    - main
   pull_request: {}
 
 permissions:
   id-token: write # Required for federated aws oidc
-  contents: read
+  contents: write
   actions: read
   pull-requests: write
+  issues: write
 
 env:
   CLUSTER_KEY: ${{secrets.CLUSTER_KEY}}
