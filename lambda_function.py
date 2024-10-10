@@ -309,13 +309,14 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
             message="Invalid presigned URL",
         ) from e
     print("output_filepath=", output_filepath)
-    with open(output_filepath, "rb") as f:
-        # 5xx responses are normal for s3, recommendation is to try 10 times
-        # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
-        attempts = 0
-        files = {"file": (output_filepath, f)}
-        print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
-        while attempts < S3_RETRY_COUNT:
+
+    attempts = 0
+    while attempts < S3_RETRY_COUNT:
+        with open(output_filepath, "rb") as f:
+            # 5xx responses are normal for s3, recommendation is to try 10 times
+            # https://aws.amazon.com/premiumsupport/knowledge-center/http-5xx-errors-s3/
+            files = {"file": (output_filepath, f)}
+            print(f'splat|posting_to_s3|{presigned_url["url"]}|{presigned_url["fields"].get("key")}')
             response = requests.post(
                 presigned_url["url"],
                 data=presigned_url["fields"],
@@ -325,16 +326,16 @@ def deliver_pdf_to_presigned_url(payload: Payload, output_filepath: str) -> Resp
             print(f"splat|s3_response|{response.status_code}")
             if response.status_code in [500, 503]:
                 attempts += 1
-                print("splat|s3_retry")
+                print(f"splat|s3_retry|reason={response.status_code}")
             else:
                 break
-        else:
-            print("splat|s3_max_retry_reached")
-            return Response(
-                status_code=response.status_code,
-                headers=response.headers,
-                body=response.content,
-            )
+    else:
+        print("splat|s3_max_retry_reached")
+        return Response(
+            status_code=response.status_code,
+            headers=response.headers,
+            body=response.content,
+        )
     if response.status_code != 204:
         print(f"splat|presigned_url_save|unknown_error|{response.status_code}|{response.content}")
         return Response(
