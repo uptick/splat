@@ -53,6 +53,7 @@ class Payload(pydantic.BaseModel):
     document_url: str | None = None
     ## Browse the document in a browser before rendering
     browser_url: str | None = None
+    browser_launch_kwargs: dict[str, Any] = pydantic.Field(default_factory=dict)
     browser_headers: dict = pydantic.Field(default_factory=dict)
     browser_context: dict = pydantic.Field(default_factory=dict)
     browser_pdf_options: Mapping[str, Any] = pydantic.Field(default_factory=dict)
@@ -98,8 +99,14 @@ def init() -> None:
 
 
 @contextmanager
-def _playwright_visit_page(browser_url: str, headers: dict, context: dict) -> Iterator[playwright.sync_api.Page]:
+def _playwright_visit_page(
+    browser_url: str,
+    headers: dict,
+    context: dict,
+    browser_launch_kwargs: dict[str, Any],
+) -> Iterator[playwright.sync_api.Page]:
     print("splat|playwright_handler|url=", browser_url)
+
     with sync_playwright() as p:
         browser = p.chromium.launch(
             headless=True,
@@ -143,6 +150,7 @@ def _playwright_visit_page(browser_url: str, headers: dict, context: dict) -> It
                 "--use-gl=swiftshader",
                 "--use-mock-keychain",
             ],
+            **browser_launch_kwargs,
         )
         context = browser.new_context(**context)
         context.set_extra_http_headers(headers)
@@ -160,13 +168,19 @@ def playwright_page_to_pdf(
     output_filepath: str,
     pdf_options: Mapping[str, str],
     context: dict,
+    browser_launch_kwargs: dict[str, Any],
 ) -> None:
-    with _playwright_visit_page(browser_url, headers, context) as page:
+    with _playwright_visit_page(browser_url, headers, context, browser_launch_kwargs) as page:
         page.pdf(path=output_filepath, **pdf_options)
 
 
-def playwright_page_to_html_string(browser_url: str, headers: dict, context: dict) -> str:
-    with _playwright_visit_page(browser_url, headers, context) as page:
+def playwright_page_to_html_string(
+    browser_url: str,
+    headers: dict,
+    context: dict,
+    browser_launch_kwargs: dict[str, Any],
+) -> str:
+    with _playwright_visit_page(browser_url, headers, context, browser_launch_kwargs) as page:
         return page.content()
 
 
@@ -186,6 +200,7 @@ def pdf_from_document_content(payload: Payload, output_filepath: str) -> None:
                 output_filepath,
                 payload.browser_pdf_options,
                 payload.browser_context,
+                payload.browser_launch_kwargs,
             )
 
 
@@ -210,6 +225,7 @@ def pdf_from_document_url(payload: Payload, output_filepath: str) -> None:
                 output_filepath,
                 payload.browser_pdf_options,
                 payload.browser_context,
+                payload.browser_launch_kwargs,
             )
 
 
@@ -219,7 +235,9 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
     # First we need to visit the browser with playwright and save the html
     assert payload.browser_url
     if payload.renderer == Renderers.princexml:
-        html = playwright_page_to_html_string(payload.browser_url, payload.browser_headers, payload.browser_context)
+        html = playwright_page_to_html_string(
+            payload.browser_url, payload.browser_headers, payload.browser_context, payload.browser_launch_kwargs
+        )
         pdf_from_document_content(
             Payload(document_content=html, renderer=Renderers.princexml),
             output_filepath,
@@ -231,6 +249,7 @@ def pdf_from_browser_url(payload: Payload, output_filepath: str) -> None:
             output_filepath,
             payload.browser_pdf_options,
             payload.browser_context,
+            payload.browser_launch_kwargs,
         )
 
 
