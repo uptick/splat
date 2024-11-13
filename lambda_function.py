@@ -407,6 +407,12 @@ def lambda_handler(event: dict, context: dict) -> dict:  # noqa
     except Exception as e:
         logger.error(f"splat|unknown_error|{str(e)}|stacktrace:", exc_info=True)
         resp = SplatPDFGenerationFailure(status_code=500, message=str(e)).as_response().as_dict()
+    finally:
+        try:
+            execute(["rm", "-rf", "/tmp/*"])  # noqa
+        except Exception as e:
+            logger.error(f"splat|cleanup_error|{str(e)}|stacktrace:", exc_info=True)
+
     return resp
 
 
