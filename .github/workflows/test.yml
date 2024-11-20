@@ -28,5 +28,9 @@ jobs:
       docker-image-platforms: linux/amd64
       docker-push: false
       docker-repository: "610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat"
-      command: GIT_SSH_COMMAND='ssh -i <(echo "$SECRET_ENV") -o StrictHostKeyChecking=accept-new' git clone git@github.com:uptick/splat-private.git
+      command: |
+        echo "$SECRET_ENV" > /tmp/deploy_key
+        chmod 600 /tmp/deploy_key
+        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+        rm /tmp/deploy_key
 
