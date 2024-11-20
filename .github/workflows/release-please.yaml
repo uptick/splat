@@ -34,7 +34,7 @@ jobs:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
     secrets:
-      SECRET_ENV: "${{ secrets.SSH_DEPLOY_KEY }}"
+      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
     #https://github.com/uptick/actions/blob/main/.github/workflows/ci.yaml
     with:
       aws-iam-role-arn: "arn:aws:iam::610829907584:role/default-github-actions-ci-role"

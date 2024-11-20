@@ -55,10 +55,11 @@ RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && 
     rm prince-14.2-aws-lambda.zip
 
 
-CMD rm -rf /var/task/fonts || true
-COPY font[s] /var/task/fonts
+RUN rm -rf /var/task/fonts || true
 RUN mkdir -p /var/task/fonts || true
-COPY license.dat ./prince-engine/license/license.dat
+COPY splat-private/font[s] /var/task/fonts
+
+COPY splat-private/license.dat ./prince-engine/license/license.dat
 COPY lambda_function.py ./
 
 ENTRYPOINT [ "/entry_script.sh","lambda_function.lambda_handler" ]
