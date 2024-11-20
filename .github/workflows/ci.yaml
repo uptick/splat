@@ -21,7 +21,8 @@ env:
 jobs:
   ci:
     uses: uptick/actions/.github/workflows/ci.yaml@main
-    secrets: inherit
+    secrets:
+      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
     with:
       python: true
       python-version: 3.11
@@ -29,6 +30,10 @@ jobs:
       poetry: true
       poetry-install-command: "poetry install"
       command: |
+        echo "$SECRET_ENV" > /tmp/deploy_key
+        chmod 600 /tmp/deploy_key
+        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+        rm /tmp/deploy_key
         curl https://mise.jdx.dev/install.sh | sh
         echo "$HOME/.local/bin" >> $GITHUB_PATH
         echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
