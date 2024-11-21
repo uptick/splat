@@ -1,0 +1,12 @@
+{
+    "packages": {
+      ".": {
+        "package-name": "splat",
+        "release-type": "python",
+        "changelog-path": "CHANGELOG.md",
+        "exclude-paths": [
+            "tests/"
+        ]
+      }
+    }
+}

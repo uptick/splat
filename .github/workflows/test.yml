@@ -1,0 +1,36 @@
+name: Test
+on:
+    push:
+      branches:
+      - master
+    pull_request: ~
+
+permissions:
+  actions: read # Read the metrics
+  contents: write # to be able to publish a GitHub release
+  issues: write # to be able to comment on released issues
+  pull-requests: write # to be able to comment on released pull requests
+  id-token: write # to enable use of OIDC for npm provenance / AWS
+
+jobs:
+  build:
+    name: Build and Push Docker Image
+    uses: uptick/actions/.github/workflows/ci.yaml@main
+    secrets:
+      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
+    #https://github.com/uptick/actions/blob/main/.github/workflows/ci.yaml
+    with:
+      aws-iam-role-arn: "arn:aws:iam::610829907584:role/default-github-actions-ci-role"
+      docker-enabled: true
+      docker-context: "."
+      docker-prefix: test
+      docker-tag-latest: false
+      docker-image-platforms: linux/amd64
+      docker-push: false
+      docker-repository: "610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat"
+      command: |
+        echo "$SECRET_ENV" > /tmp/deploy_key
+        chmod 600 /tmp/deploy_key
+        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+        rm /tmp/deploy_key
+
