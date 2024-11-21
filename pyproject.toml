@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "uptick-splat"
-version = "0.1.8"
+version = "0.2.0"
 description = "Django library for invoking splat"
 authors = ["william chu <william.chu@uptickhq.com>"]
 readme = "README.md"
