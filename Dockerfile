@@ -1,7 +1,7 @@
 # Define function directory
 ARG FUNCTION_DIR="/var/task"
 
-FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy as build-image
+FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy AS build-image
 
 # Install aws-lambda-cpp build dependencies
 RUN apt-get update && \
