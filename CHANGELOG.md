@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/uptick/splat/compare/splat-v0.2.0...splat-v0.3.0) (2024-12-02)
+
+
+### Features
+
+* Update container with new license ([de81478](https://github.com/uptick/splat/commit/de81478bd724d6521a2a8503653ea6c41c0aef21))
+
 ## [0.2.0](https://github.com/uptick/splat/compare/splat-v0.1.8...splat-v0.2.0) (2024-11-21)
 
 
