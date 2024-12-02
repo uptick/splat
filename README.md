@@ -89,3 +89,19 @@ mise run test # run tests
 
 mise run format # format
 ```
+
+## Local testing
+
+Use the `./splat_cli.py` program (via UV) to execute the lambda.
+It is possible to target the lambda running in the docker container or a deployed lambda running in aws.
+
+Example usages:
+
+```bash
+# Invoke using a local function url
+./splat_cli.py -o /tmp/google.pdf -b https://google.com
+
+# Invoke using a deployed lambda against an embedded document content
+./splat_cli.py -o /tmp/test.pdf -c "<h1> hi </h1>" --function-name splat-staging
+
+```
