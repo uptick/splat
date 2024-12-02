@@ -101,7 +101,7 @@ Example usages:
 # Invoke using a local function url
 ./splat_cli.py -o /tmp/google.pdf -b https://google.com
 
-# Invoke using a deployed lambda against an embedded document content
+# Invoke using a deployed AWS lambda against an embedded document content
 ./splat_cli.py -o /tmp/test.pdf -c "<h1> hi </h1>" --function-name splat-staging
 
 ```
