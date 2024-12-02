@@ -1,9 +1,6 @@
 name: Test
 on:
-    push:
-      branches:
-      - master
-    pull_request: ~
+  pull_request: ~
 
 permissions:
   actions: read # Read the metrics
@@ -26,11 +23,9 @@ jobs:
       docker-prefix: test
       docker-tag-latest: false
       docker-image-platforms: linux/amd64
-      docker-push: false
       docker-repository: "610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat"
       command: |
         echo "$SECRET_ENV" > /tmp/deploy_key
         chmod 600 /tmp/deploy_key
         GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
         rm /tmp/deploy_key
-
