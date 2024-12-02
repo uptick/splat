@@ -1,7 +1,10 @@
 [tools]
 poetry = { version = 'latest', pyproject = 'pyproject.toml' }
-python = { version= '3.11'}
+python = { version= '3.11', venv = ".venv"}
 awscli = '2.22.7'
+
+[env]
+_.python.venv = { path = "{{config_root}}/.venv",  create = true }
 
 [tasks.format]
 description = "Run all formatters"
