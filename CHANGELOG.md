@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.1](https://github.com/uptick/splat/compare/splat-v0.3.0...splat-v0.3.1) (2025-01-12)
+
+
+### Bug Fixes
+
+* **playwright:** extend wait for network timeout ([db1da1d](https://github.com/uptick/splat/commit/db1da1d1acd910355cab13f42220d756037ceb61))
+
 ## [0.3.0](https://github.com/uptick/splat/compare/splat-v0.2.0...splat-v0.3.0) (2024-12-02)
 
 
