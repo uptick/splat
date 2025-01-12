@@ -157,8 +157,9 @@ def _playwright_visit_page(
         page = context.new_page()
         page.goto(browser_url, timeout=1000 * 60 * 10)
         page.emulate_media(media="print")
-        page.wait_for_load_state("domcontentloaded")
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("domcontentloaded",)
+        # 120 seconds
+        page.wait_for_load_state("networkidle", timeout=120 * 1000)
         yield page
 
 
