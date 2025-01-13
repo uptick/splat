@@ -8,6 +8,7 @@ import sys
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
+from asyncio import InvalidStateError
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -20,6 +21,7 @@ import playwright.sync_api
 import pydantic
 import requests
 import sentry_sdk
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
@@ -157,9 +159,12 @@ def _playwright_visit_page(
         page = context.new_page()
         page.goto(browser_url, timeout=1000 * 60 * 10)
         page.emulate_media(media="print")
-        page.wait_for_load_state("domcontentloaded",)
-        # 120 seconds
-        page.wait_for_load_state("networkidle", timeout=120 * 1000)
+        page.wait_for_load_state("domcontentloaded")
+        # 30 seconds
+        try:
+            page.wait_for_load_state("networkidle", timeout=30 * 1000)
+        except (PlaywrightTimeoutError, InvalidStateError):
+            logger.warning("Timed out waiting for network idle, proceeding anyways")
         yield page
 
 
