@@ -1,4 +1,5 @@
 import base64
+import datetime
 import enum
 import json
 import logging
@@ -158,13 +159,17 @@ def _playwright_visit_page(
         context.set_extra_http_headers(headers)
         page = context.new_page()
         page.goto(browser_url, timeout=1000 * 60 * 10)
+        network_log = []
+        page.on("request", lambda request: network_log.append(f">>> request {request.url}"))
+        page.on("response", lambda response: network_log.append(f"<<< response {response.url} {response.status})"))
         page.emulate_media(media="print")
         page.wait_for_load_state("domcontentloaded")
-        # 30 seconds
         try:
-            page.wait_for_load_state("networkidle", timeout=30 * 1000)
+            page.wait_for_load_state("load")
         except (PlaywrightTimeoutError, InvalidStateError):
-            logger.warning("Timed out waiting for network idle, proceeding anyways")
+            logger.warning("Timed out waiting for load, proceeding anyways")
+            for log in network_log:
+                logger.warning(log)
         yield page
 
 

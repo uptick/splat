@@ -49,7 +49,7 @@ def invoke_function(
     Invoke using a deployed lambda against an embedded document
     ./splat_cli.py -o /tmp/google.pdf -c "<h1> hi </h1>" --function-name splat-staging
     """
-    if not document_content or document_url or browser_url:
+    if not (document_content or document_url or browser_url):
         print("Please provide document content or document url or browser url")
         raise typer.Exit(code=1)
 
