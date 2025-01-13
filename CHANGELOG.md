@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.2](https://github.com/uptick/splat/compare/splat-v0.3.1...splat-v0.3.2) (2025-01-13)
+
+
+### Bug Fixes
+
+* **playwright:** switch to the load event which is better than network idle ([8502d0c](https://github.com/uptick/splat/commit/8502d0c47fc7f545228e654655b5d14a8e86e3d7))
+
 ## [0.3.1](https://github.com/uptick/splat/compare/splat-v0.3.0...splat-v0.3.1) (2025-01-12)
 
 
