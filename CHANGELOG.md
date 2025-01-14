@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.3](https://github.com/uptick/splat/compare/splat-v0.3.2...splat-v0.3.3) (2025-01-14)
+
+
+### Bug Fixes
+
+* trigger another build ([254f130](https://github.com/uptick/splat/commit/254f1301b0f9e7f57694307554308889d2db1245))
+
 ## [0.3.2](https://github.com/uptick/splat/compare/splat-v0.3.1...splat-v0.3.2) (2025-01-13)
 
 
