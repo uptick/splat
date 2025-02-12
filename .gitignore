@@ -20,3 +20,6 @@ fonts
 fonts/*
 fonts/
 minio/
+
+#
+**/.venv
