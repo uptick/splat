@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/uptick/splat/compare/splat-v0.3.3...splat-v0.4.0) (2025-10-23)
+
+
+### Features
+
+* upgrade princexml to 16 ([e9b520c](https://github.com/uptick/splat/commit/e9b520cebe0e0619ca2b2dfc9f265d4218cd1c5c))
+
 ## [0.3.3](https://github.com/uptick/splat/compare/splat-v0.3.2...splat-v0.3.3) (2025-01-14)
 
 
