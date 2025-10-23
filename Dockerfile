@@ -50,9 +50,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Download and extract PrinceXML
-RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && \
-    unzip prince-14.2-aws-lambda.zip && \
-    rm prince-14.2-aws-lambda.zip
+RUN curl -O -J https://www.princexml.com/download/prince-16.1-aws-lambda.zip && \
+    unzip prince-16.1-aws-lambda.zip && \
+    rm prince-16.1-aws-lambda.zip
 
 
 RUN rm -rf /var/task/fonts || true
