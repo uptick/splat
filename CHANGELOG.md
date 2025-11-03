@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/uptick/splat/compare/splat-v0.4.0...splat-v0.4.1) (2025-11-03)
+
+
+### Bug Fixes
+
+* add claude.md file ([f2552d5](https://github.com/uptick/splat/commit/f2552d58ac78e8f22ad61a2a4bb0e082a5885fd1))
+
 ## [0.4.0](https://github.com/uptick/splat/compare/splat-v0.3.3...splat-v0.4.0) (2025-10-23)
 
 
