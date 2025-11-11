@@ -1,6 +1,6 @@
 [project]
 name = "uptick-splat"
-version = "0.4.1"
+version = "0.4.2"
 description = "Django library for invoking splat"
 authors = [
     { name = "william chu", email = "william.chu@uptickhq.com" }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.2](https://github.com/uptick/splat/compare/splat-v0.4.1...splat-v0.4.2) (2025-11-11)
+
+
+### Maintenance
+
+* chore(deps): update dependencies (awscli, boto3, sentry-sdk, requests)
+* refactor: upgrade to Python 3.12 and Django 5.0+
+* refactor: migrate from pip to uv for dependency management
+* chore: configure Renovate for automated dependency updates
+
 ## [0.4.1](https://github.com/uptick/splat/compare/splat-v0.4.0...splat-v0.4.1) (2025-11-03)
 
 
