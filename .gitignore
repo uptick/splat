@@ -21,3 +21,8 @@ fonts
 fonts/*
 fonts/
 minio/
+__pycache__
+
+# uv
+.venv/
+.python-version

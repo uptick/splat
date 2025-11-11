@@ -1,15 +1,19 @@
 [tools]
-poetry = { version = 'latest', pyproject = 'pyproject.toml' }
+uv = 'latest'
 python = { version= '3.11'}
 awscli = '2.22.7'
 
+[tasks.sync]
+description = "Sync dependencies"
+run = "uv sync --all-extras"
+
 [tasks.format]
 description = "Run all formatters"
-run = "poetry run ruff format ."
+run = "uv run ruff format ."
 
 [tasks.ruff-check]
 description = "Run ruff checker"
-run = "poetry run ruff check --fix ."
+run = "uv run ruff check --fix ."
 
 [tasks.lint]
 description = "Run all linters"
@@ -32,7 +36,7 @@ depends = ['lint', 'ci:test']
 description = "Sets up dev dependencies"
 run = [
   "mise install",
-  "poetry install",
+  "uv sync --all-extras",
   "pre-commit install",
 ]
 depends = ["build"]

@@ -1,15 +1,14 @@
-version: '3.9'
-
 services:
   dev:
     image: dev:latest
     platform: linux/amd64
-
+    entrypoint: ["uv", "run"]
     build:
       context: .
       dockerfile: Dockerfile.dev
     volumes:
       - './:/app'
+      - 'dev-venv:/app/.venv'
     depends_on:
       - lambda
     profiles: [test]
@@ -53,3 +52,6 @@ services:
       - './minio:/data/minio'
     # Buckets are just mapped to the `minio` directory. We default create a test bucket
     command:  -c 'mkdir -p /data/minio/test && /usr/bin/minio server --console-address ":9090" /data/minio'
+
+volumes:
+  dev-venv:
