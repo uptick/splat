@@ -1,6 +1,6 @@
 [tools]
 uv = 'latest'
-python = { version= '3.11'}
+python = { version= '3.12'}
 awscli = '2.22.7'
 
 [tasks.sync]
