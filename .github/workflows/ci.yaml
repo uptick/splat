@@ -27,8 +27,6 @@ jobs:
       python: true
       python-version: 3.11
       praise-on-fix: false
-      poetry: true
-      poetry-install-command: "poetry install"
       command: |
         echo "$SECRET_ENV" > /tmp/deploy_key
         chmod 600 /tmp/deploy_key

@@ -137,7 +137,7 @@ docker compose --profile test run --rm -it dev pytest tests/test_lambda_e2e.py -
   - Auto-creates "test" bucket
   - Credentials: root/password
 
-- **dev service:** Development container with Poetry for running tests
+- **dev service:** Development container with uv for running tests
 
 ## Build & Deployment
 
@@ -201,12 +201,14 @@ playwright==1.43.0
 
 ### Development (pyproject.toml)
 ```
-python = "^3.9"  # Library supports 3.9+, Lambda uses 3.11
-django = ">=3.1, <5.0.0"
-boto3 = "*"
-playwright = "1.43.0"
-pytest = "^8.1.1"
-ruff = "^0.3.7"
+requires-python = ">=3.9"  # Library supports 3.9+, Lambda uses 3.11
+dependencies:
+  django = ">=3.1, <5.0.0"
+  boto3
+  playwright = "1.43.0"
+dev dependencies:
+  pytest = ">=8.1.1"
+  ruff = ">=0.3.7"
 ```
 
 ## Code Style

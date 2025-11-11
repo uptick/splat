@@ -3,17 +3,14 @@ FROM python:3.11-slim-bullseye
 # Set the working directory in the container
 WORKDIR /app
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Install Poetry
-ENV POETRY_VERSION=1.8.1
-RUN pip install "poetry==$POETRY_VERSION"
+# Copy the uv configuration files and README (required by pyproject.toml)
+COPY pyproject.toml uv.lock README.md ./
 
-# Copy the Poetry configuration files
-COPY pyproject.toml poetry.lock ./
-# Install project dependencies
-RUN poetry config virtualenvs.create false \
-    && poetry install --no-interaction --no-ansi --no-root
-
+# Install project dependencies (including dev dependencies for testing)
+RUN uv sync --frozen --all-extras
 
 # Copy the rest of the application code
 COPY . .
