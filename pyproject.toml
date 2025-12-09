@@ -10,7 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "django>=5.0, <5.2",
     "boto3",
-    "playwright==1.43.0",
+    "playwright==1.57.0",
 ]
 
 [dependency-groups]
