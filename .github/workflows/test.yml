@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     name: Build and Push Docker Image
-    uses: uptick/actions/.github/workflows/ci.yaml@main
+    uses: uptick/actions/.github/workflows/ci.yaml@main # ratchet:exclude
     secrets:
       SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
     #https://github.com/uptick/actions/blob/main/.github/workflows/ci.yaml
