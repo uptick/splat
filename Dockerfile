@@ -1,7 +1,7 @@
 # Define function directory
 ARG FUNCTION_DIR="/var/task"
 
-FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy AS build-image
+FROM mcr.microsoft.com/playwright/python:v1.57.0-jammy AS build-image
 
 # Install aws-lambda-cpp build dependencies
 RUN apt-get update && \
@@ -26,7 +26,7 @@ RUN pip3 install -r lambda_requirements.txt --target ${FUNCTION_DIR}
 # ------------------------------------------------------
 
 # Multi-stage build: grab a fresh copy of the base image
-FROM mcr.microsoft.com/playwright/python:v1.43.0-jammy
+FROM mcr.microsoft.com/playwright/python:v1.57.0-jammy
 
 # Include global arg in this stage of the build
 ARG FUNCTION_DIR
