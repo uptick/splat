@@ -1,6 +1,6 @@
 requests==2.32.4
 boto3==1.40.70
-sentry-sdk==1.45.1
+sentry-sdk==2.49.0
 awslambdaric
 pydantic
 playwright==1.43.0
