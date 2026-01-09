@@ -1,5 +1,5 @@
 requests==2.32.4
-boto3==1.40.70
+boto3==1.42.25
 sentry-sdk==1.45.1
 awslambdaric
 pydantic
