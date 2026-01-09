@@ -1,7 +1,7 @@
 [tools]
 uv = 'latest'
 python = { version= '3.12'}
-awscli = '2.31.33'
+awscli = '2.32.32'
 
 [tasks.sync]
 description = "Sync dependencies"
