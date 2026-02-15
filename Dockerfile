@@ -39,6 +39,7 @@ COPY --from=build-image ${FUNCTION_DIR} ${FUNCTION_DIR}
 COPY ./entry_script.sh /entry_script.sh
 RUN curl -Lo aws-lambda-rie \
     https://github.com/aws/aws-lambda-runtime-interface-emulator/releases/latest/download/aws-lambda-rie && \
+    echo "10318bf86dc0dfaf3a291823bfae7b7038b2130f83aab803b9211867a99e1bf4 aws-lambda-rie" | sha256sum -c && \
     chmod +x aws-lambda-rie && \
     mv aws-lambda-rie /usr/local/bin/aws-lambda-rie
 
@@ -51,6 +52,7 @@ RUN apt-get update && \
 
 # Download and extract PrinceXML
 RUN curl -O -J https://www.princexml.com/download/prince-14.2-aws-lambda.zip && \
+    echo "f70cc3051dee9e47c27607dd14f7d15ea65f2de3359f3f5b3f32cdeff1b6c956 prince-14.2-aws-lambda.zip" | sha256sum -c && \
     unzip prince-14.2-aws-lambda.zip && \
     rm prince-14.2-aws-lambda.zip
 
