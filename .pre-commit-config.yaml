@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.3.7
+    rev: 0839f92796ae388643a08a21640a029b322be5c2  # frozen: v0.15.2
     hooks:
     - id: ruff
       args:
@@ -8,11 +8,11 @@ repos:
       - F401
       - --fix
 -   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.3.7
+    rev: 0839f92796ae388643a08a21640a029b322be5c2  # frozen: v0.15.2
     hooks:
     - id: ruff
 -   repo: https://github.com/charliermarsh/ruff-pre-commit
-    rev: v0.3.7
+    rev: 0839f92796ae388643a08a21640a029b322be5c2  # frozen: v0.15.2
     hooks:
     - id: ruff-format
 # -
@@ -29,7 +29,7 @@ repos:
     #     types:
     #     - python
 -   repo: https://github.com/commitizen-tools/commitizen
-    rev: v3.13.0
+    rev: 7179a42b3544e953e3683a670056ad385892365d  # frozen: v4.13.8
     hooks:
     -   id: commitizen
         stages:
