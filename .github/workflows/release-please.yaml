@@ -5,19 +5,17 @@ on:
       - master
 
 permissions:
-  actions: read # Read the metrics
-  contents: write # to be able to publish a GitHub release
-  issues: write # to be able to comment on released issues
-  pull-requests: write # to be able to comment on released pull requests
-  id-token: write # to enable use of OIDC for npm provenance / AWS
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+  id-token: write
 
 jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      # Root level release_created
       release_created: ${{ steps.release.outputs.release_created }}
-      # Root level tag_name
       tag_name: ${{ steps.release.outputs.tag_name }}
       sha: ${{ steps.release.outputs.sha }}
     steps:
@@ -27,22 +25,52 @@ jobs:
 
   publish_docker_image:
     name: Build and Push Docker Image
-    uses: uptick/actions/.github/workflows/ci.yaml@main # ratchet:exclude
+    runs-on: ubuntu-24.04
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created }}
-    secrets:
-      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
-    #https://github.com/uptick/actions/blob/main/.github/workflows/ci.yaml
-    with:
-      aws-iam-role-arn: "arn:aws:iam::610829907584:role/default-github-actions-ci-role"
-      docker-enabled: true
-      docker-context: "."
-      docker-tag: "${{ needs.release-please.outputs.tag_name }}"
-      docker-tag-latest: true
-      docker-image-platforms: linux/amd64
-      docker-repository: "610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat"
-      command: |
-        echo "$SECRET_ENV" > /tmp/deploy_key
-        chmod 600 /tmp/deploy_key
-        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
-        rm /tmp/deploy_key
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Set environment variables
+        run: |
+          echo "GIT_SHORT_HASH=$(echo ${{ github.sha }} | cut -c -7)" >> $GITHUB_ENV
+
+      - name: Clone private repo
+        env:
+          SECRET_ENV: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          echo "$SECRET_ENV" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+          rm /tmp/deploy_key
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # ratchet:aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          role-to-assume: arn:aws:iam::610829907584:role/default-github-actions-ci-role
+          role-session-name: ${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-region: ap-southeast-2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # ratchet:docker/setup-buildx-action@v3.12.0
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # ratchet:aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # ratchet:docker/build-push-action@v6
+        with:
+          context: "."
+          file: Dockerfile
+          cache-from: type=gha
+          cache-to: type=gha, mode=max
+          provenance: false
+          platforms: linux/amd64
+          push: true
+          tags: |
+            610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:${{ env.GIT_SHORT_HASH }}
+            610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:latest
+            610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:${{ needs.release-please.outputs.tag_name }}

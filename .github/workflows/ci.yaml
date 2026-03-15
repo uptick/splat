@@ -1,4 +1,4 @@
-name: Python
+name: CI
 on:
   push:
     branches:
@@ -9,31 +9,44 @@ on:
   pull_request: {}
 
 permissions:
-  id-token: write # Required for federated aws oidc
+  id-token: write
   contents: write
   actions: read
   pull-requests: write
   issues: write
 
 env:
-  CLUSTER_KEY: ${{secrets.CLUSTER_KEY}}
+  CLUSTER_KEY: ${{ secrets.CLUSTER_KEY }}
+  PYTHONUNBUFFERED: 1
 
 jobs:
   ci:
-    uses: uptick/actions/.github/workflows/ci.yaml@main # ratchet:exclude
-    secrets:
-      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
-    with:
-      python: true
-      python-version: 3.11
-      praise-on-fix: false
-      command: |
-        echo "$SECRET_ENV" > /tmp/deploy_key
-        chmod 600 /tmp/deploy_key
-        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
-        rm /tmp/deploy_key
-        curl https://mise.jdx.dev/install.sh | sh
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        echo "$HOME/.local/share/mise/shims" >> $GITHUB_PATH
-        mise settings set experimental true
-        mise run ci
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Install Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # ratchet:actions/setup-python@v6.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Setup mise
+        uses: jdx/mise-action@146a28175021df8ca24f8ee1828cc2a60f980bd5 # ratchet:jdx/mise-action@v3.5.1
+        with:
+          install: true
+          cache: true
+          experimental: true
+
+      - name: Run CI
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SECRET_ENV: ${{ secrets.DEPLOY_KEY }}
+        run: |
+          echo "$SECRET_ENV" > /tmp/deploy_key
+          chmod 600 /tmp/deploy_key
+          GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+          rm /tmp/deploy_key
+          mise run ci
