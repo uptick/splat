@@ -1,0 +1,40 @@
+name: Release
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish_to_pypi:
+    name: Publishes tag to pypi
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: 3
+      - name: Install build tools
+        run: python3 -m pip install --user --upgrade uv
+      - name: Build package
+        run: cd bsecure_client && python3 -m uv build
+      - name: Upload package
+        run: cd bsecure_client && python3 -m uv publish --token ${{ secrets.PYPI_TOKEN }}
+
+  publish_docker_image:
+    name: Build and Push Docker Image
+    uses: uptick/actions/.github/workflows/ci.yaml@main # ratchet:exclude
+    secrets:
+      SECRET_ENV: "${{ secrets.DEPLOY_KEY }}"
+    with:
+      aws-iam-role-arn: "arn:aws:iam::610829907584:role/default-github-actions-ci-role"
+      docker-enabled: true
+      docker-context: "."
+      docker-tag: "${{ github.event.release.tag_name }}"
+      docker-tag-latest: true
+      docker-image-platforms: linux/amd64
+      docker-repository: "610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat"
+      command: |
+        echo "$SECRET_ENV" > /tmp/deploy_key
+        chmod 600 /tmp/deploy_key
+        GIT_SSH_COMMAND="ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new" git clone git@github.com:uptick/splat-private.git
+        rm /tmp/deploy_key
