@@ -74,3 +74,31 @@ jobs:
             610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:${{ env.GIT_SHORT_HASH }}
             610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:latest
             610829907584.dkr.ecr.ap-southeast-2.amazonaws.com/splat:${{ needs.release-please.outputs.tag_name }}
+
+  publish_pypi:
+    name: Build and Publish to s3pypi
+    runs-on: ubuntu-24.04
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # ratchet:actions/checkout@v6.0.1
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # ratchet:aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          role-to-assume: arn:aws:iam::610829907584:role/default-github-actions-ci-role
+          role-session-name: ${{ github.repository_owner }}-${{ github.event.repository.name }}
+          aws-region: ap-southeast-2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # ratchet:astral-sh/setup-uv@v5
+
+      - name: Build Python package
+        run: uvx build
+
+      - name: Publish to S3 PyPI
+        run: uvx s3pypi@2.0.1 upload dist/* --bucket ${{ secrets.S3_PYPI_BUCKET }}
