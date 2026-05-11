@@ -98,7 +98,7 @@ jobs:
         uses: astral-sh/setup-uv@cec208311dfd045dd5311c1add060b2062131d57 # ratchet:astral-sh/setup-uv@v5
 
       - name: Build Python package
-        run: uvx build
+        run: uv build
 
       - name: Publish to S3 PyPI
         run: uvx s3pypi@2.0.1 upload dist/* --bucket ${{ secrets.S3_PYPI_BUCKET }}
