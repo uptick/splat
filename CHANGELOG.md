@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/uptick/splat/compare/splat-v0.4.2...splat-v0.4.3) (2026-05-25)
+
+
+### Bug Fixes
+
+* **security:** update requests from 2.32.4 to 2.33.0 ([cd229e8](https://github.com/uptick/splat/commit/cd229e8171dafa81b02a65ddcb98730cf7ff3b92))
+
 ## [0.4.2](https://github.com/uptick/splat/compare/splat-v0.4.1...splat-v0.4.2) (2025-11-11)
 
 
